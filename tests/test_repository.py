@@ -10,9 +10,12 @@ class RepositoryTests(unittest.TestCase):
         for relative in ("README.md", "docs", "local", "frontier", "evaluator"):
             self.assertTrue((ROOT / relative).exists(), relative)
 
-    def test_ci_is_cpu_only_and_runs_the_public_check(self) -> None:
+    def test_ci_covers_three_desktop_platforms_and_keeps_gpu_optional(self) -> None:
         workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-        self.assertIn("make check", workflow)
+        for runner in ("ubuntu-latest", "macos-latest", "windows-latest"):
+            self.assertIn(runner, workflow)
+        self.assertIn("python -m build", workflow)
+        self.assertIn("test_avo_*.py", workflow)
         self.assertIn("docker compose -f local/docker-compose.yml config --quiet", workflow)
         self.assertNotIn("--gpus", workflow)
         self.assertNotIn("smoke.sh", workflow)

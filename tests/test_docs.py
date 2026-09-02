@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 import unittest
 
 from scripts.lint_steps import lint_repository
@@ -38,6 +39,41 @@ class DocumentationTests(unittest.TestCase):
         self.assertIn("/hooks", text)
         self.assertIn("claude", text)
         self.assertIn("codex", text)
+        self.assertIn("aqh install", text)
+        self.assertIn("aqh uninstall", text)
+        self.assertNotIn("frontier/scripts/install_hooks.py", text)
+
+    def test_avo_is_explicitly_experimental_bounded_and_cli_only(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        runbook = (ROOT / "docs/avo-experiment.md").read_text(encoding="utf-8")
+        security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+        combined = "\n".join((readme, runbook, security)).lower()
+        for phrase in (
+            "experimental",
+            "cli-only",
+            "completion gate",
+            "both personal subscriptions",
+            "no external paid routes",
+            "max-review-calls",
+            "max-repair-turns",
+            "no measured uplift",
+            "desktop is not qualified",
+        ):
+            self.assertIn(phrase, combined)
+        self.assertIn('pip install "agent-quality-harness[experiment]"', runbook)
+        self.assertIn("automatic full-run retries", runbook.lower())
+
+    def test_all_repository_relative_markdown_links_exist(self) -> None:
+        missing: list[str] = []
+        for source in (ROOT / "README.md", *(ROOT / "docs").glob("*.md")):
+            text = source.read_text(encoding="utf-8")
+            for target in re.findall(r"\[[^]]+\]\(([^)]+)\)", text):
+                if "://" in target or target.startswith("#") or target.startswith("mailto:"):
+                    continue
+                relative = target.split("#", 1)[0]
+                if relative and not (source.parent / relative).resolve().exists():
+                    missing.append(f"{source.relative_to(ROOT)} -> {target}")
+        self.assertEqual(missing, [])
 
 
 if __name__ == "__main__":

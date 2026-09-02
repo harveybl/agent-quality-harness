@@ -1,238 +1,181 @@
 # Add the completion gate to Claude Code and Codex
 
-This path preserves the normal authenticated personal-plan CLI. It does not create auth wrappers, copy credentials, use API keys, change billing, or edit global memories, skills, MCP servers, plugins, or account settings. Account-level behavior is therefore not ignored; it remains identical across baseline and enhanced arms. The experimental treatment is repository-local.
+This is the everyday frontier path: one package, one repository-local install,
+and the normal `claude` and `codex` applications. AQH does not create a second
+login, change global memories or skills, replace MCP configuration, or add API
+billing. The account environment remains the same in clean and enhanced runs.
 
-## Step 1: Pin this installer and name the target
+## Step 1: Install the small base package
 
 ### Purpose
 
-Keep the harness source and the application under test separate.
+Put the `aqh` command in an isolated Python environment. The base package has
+no runtime dependencies.
 
 ### Run
 
 ```bash
-git clone https://github.com/harveybl/agent-quality-harness.git
-cd agent-quality-harness
-git checkout v0.1.0
-export TARGET_REPO=/absolute/path/to/a/disposable-git-worktree
-git -C "$TARGET_REPO" status --short
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install agent-quality-harness
+aqh --help
 ```
+
+On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1`.
 
 ### Expect
 
-The harness prints tag `v0.1.0`; the target is a Git repository with a known clean or intentionally recorded state.
+Help lists `install`, `doctor`, `verify`, and `uninstall`.
 
 ### If it fails
 
-Use an absolute target path and create a disposable Git worktree before proceeding.
+Use Python 3.11 or newer and resolve the first package-install error.
 
 ### Verify
 
 ```bash
-git describe --tags --exact-match
-git -C "$TARGET_REPO" rev-parse --show-toplevel
-```
-
-### Undo
-
-No target mutation in this step.
-
-## Step 2: Define deterministic completion checks
-
-### Purpose
-
-Make “done” a repository-owned test/build contract rather than a model assertion.
-
-### Run
-
-```bash
-cp evaluator/gate.example.json /tmp/agent-quality-gate.json
-python3 -m json.tool /tmp/agent-quality-gate.json
-```
-
-Edit only `commands`, `protected_paths`, and `max_blocks`. Keep each command as an argument array. Start with `max_blocks: 1`.
-
-### Expect
-
-Every command already passes on the untouched target, and protected paths include evaluator files the agent must not change.
-
-### If it fails
-
-Fix the target's pre-existing test environment before installing a gate. A broken baseline cannot measure the treatment.
-
-### Verify
-
-Run each configured `argv` manually from `$TARGET_REPO` and record its exit code.
-
-### Undo
-
-```bash
-rm -f /tmp/agent-quality-gate.json
-```
-
-## Step 3: Install one or both repository-local adapters
-
-### Purpose
-
-Merge the shared Stop gate without overwriting unrelated Claude Code or Codex hooks.
-
-### Run
-
-```bash
-python3 frontier/scripts/install_hooks.py \
-  --target "$TARGET_REPO" \
-  --tool both \
-  --gate /tmp/agent-quality-gate.json
-```
-
-### Expect
-
-The target gains `.agent-quality`, one Stop entry in `.claude/settings.json`, one in `.codex/hooks.json`, and a rollback manifest. Existing keys and hook arrays remain.
-
-### If it fails
-
-Malformed JSON is rejected before mutation. If a previous install exists, uninstall it rather than stacking another generation.
-
-### Verify
-
-```bash
-python3 -m json.tool "$TARGET_REPO/.agent-quality/install-manifest.json"
-python3 -m json.tool "$TARGET_REPO/.claude/settings.json"
-python3 -m json.tool "$TARGET_REPO/.codex/hooks.json"
+aqh --help
 ```
 
 ### Undo
 
 ```bash
-python3 frontier/scripts/uninstall_hooks.py --target "$TARGET_REPO"
+python -m pip uninstall agent-quality-harness
 ```
 
-## Step 4: Synthetic verification
+## Step 2: Install and verify one repository-local gate
+
+This step includes **Synthetic verification** before any model tokens are used.
 
 ### Purpose
 
-Prove merge, block, pass, idempotence, and byte-exact rollback without spending model tokens.
+Add the same deterministic completion contract to Claude Code and Codex while
+preserving unrelated repository settings.
 
 ### Run
 
+Create `quality-gate.json` in the target repository and replace the example
+test command with one that already passes before the experiment:
+
+```json
+{
+  "schema_version": 1,
+  "max_blocks": 2,
+  "protected_paths": ["tests", "quality-gate.json"],
+  "commands": [
+    {"name": "tests", "argv": ["python", "-m", "unittest", "discover", "-s", "tests", "-v"], "timeout_seconds": 900}
+  ]
+}
+```
+
+Then run:
+
 ```bash
-python3 -m unittest discover -s frontier/tests -v
-python3 -m unittest discover -s evaluator/tests -v
+aqh install --target /absolute/path/to/repository --tool both --gate /absolute/path/to/repository/quality-gate.json
+aqh doctor --target /absolute/path/to/repository
+aqh verify --target /absolute/path/to/repository
 ```
 
 ### Expect
 
-All synthetic installer and completion-gate tests pass, including a failing fixture that blocks and a repaired fixture that passes.
+`doctor` reports both clients and a custom gate. `verify` reports pass, bounded
+failure, and exact rollback checks without making a model call.
 
 ### If it fails
 
-Do not open a model session. Resolve the exact failing test in the harness checkout first.
+Fix a pre-existing test failure or the reported JSON/path issue. Do not create
+an authentication wrapper or bypass client security.
 
 ### Verify
 
 ```bash
-git status --short
+python -m json.tool /absolute/path/to/repository/.agent-quality/install-manifest.json
+aqh doctor --target /absolute/path/to/repository
 ```
-
-Only the documented target installation should be new.
 
 ### Undo
 
-No additional target mutation in this step.
+```bash
+aqh uninstall --target /absolute/path/to/repository
+```
 
-## Step 5: Product-native verification in Claude Code
+## Step 3: Product-native verification
 
 ### Purpose
 
-Confirm Claude Code itself loaded the repository-local treatment through the normal login and native harness.
+Prove each native client loaded the installed hook; synthetic verification is
+necessary but is not evidence that a product consumed it.
 
 ### Run
 
 ```bash
-cd "$TARGET_REPO"
+cd /absolute/path/to/repository
 claude
 ```
 
-Inside Claude Code, review the repository and Stop hook when prompted, inspect hooks with `/hooks`, then ask Claude to run the configured checks and finish without changing code.
+In Claude Code, inspect `/hooks`, then ask it to run the configured checks and
+finish. Repeat with `codex` and inspect `/hooks`. If using a supported desktop
+client, open this exact repository and perform the same check there as a
+separate qualification.
 
 ### Expect
 
-Claude Code starts already authenticated, displays the installed Stop command as repository-local, and surfaces `completion gate passed` when it finishes.
+Each tested client identifies the repository-local hook and surfaces
+`completion gate passed`. Normal existing authentication is used.
 
 ### If it fails
 
-Check the exact hook command and current working directory. Do not create a second auth home, wrapper, or login flow.
+Confirm the exact repository is open, trust the displayed hook hash if you
+recognize it, and inspect `aqh doctor`. Do not add a second login flow.
 
 ### Verify
 
-Inspect `/hooks` and the final native hook event. This is Product-native verification; the Python synthetic test alone is not proof Claude loaded it.
+Record the client/version, `/hooks` source, and native Stop event. Label CLI and
+desktop observations separately.
 
 ### Undo
 
-Exit Claude Code. Use the uninstaller in Step 7 if you want to remove the treatment.
+Exit the client. The hook remains local to the repository until Step 4.
 
-## Step 6: Product-native verification in Codex
+## Step 4: Compare once and roll back exactly
 
 ### Purpose
 
-Confirm Codex loaded the same gate while preserving the normal ChatGPT/Codex login and native agent loop.
+Measure the treatment fairly, then restore the repository's prior files.
 
 ### Run
 
-```bash
-cd "$TARGET_REPO"
-codex
-```
+Run the clean condition after `aqh uninstall`, reset a disposable candidate to
+the recorded starting commit, then run the enhanced condition after the Step 2
+install. Keep task, model, effort, permissions, time limit, evaluator, and
+starting files equal. Run each condition once; never automatically retry a full
+model run.
 
-Inside Codex, run `/hooks`, review and trust the exact repository hook hash once, then ask Codex to run the configured checks and finish without changing code.
-
-### Expect
-
-Codex lists `.codex/hooks.json` as the source and surfaces `completion gate passed`. A changed hook hash requires review again by design.
-
-### If it fails
-
-Confirm the project is trusted and hooks are enabled. Do not bypass normal authentication or add API billing.
-
-### Verify
-
-Use `/hooks` and the native Stop event. This is Product-native verification and is distinct from Step 4.
-
-### Undo
-
-Exit Codex. Use the uninstaller in Step 7 if you want to remove the treatment.
-
-## Step 7: Compare, inspect, and roll back
-
-### Purpose
-
-Run a fair baseline/enhanced pair and leave the target exactly as it was.
-
-### Run
-
-For the baseline, uninstall the adapter and run `claude` or `codex` normally. For the enhanced arm, reinstall the same tag and gate. Keep model, task prompt, starting commit, account configuration, permissions, effort, time limit, evaluator, and sampling equal. Run each arm once; do not automatically retry.
-
-Then roll back:
+Finally:
 
 ```bash
-python3 frontier/scripts/uninstall_hooks.py --target "$TARGET_REPO"
+aqh uninstall --target /absolute/path/to/repository
 ```
 
 ### Expect
 
-The comparison records pass/fail, evaluator score, elapsed time, model cycles/calls when available, tokens, human intervention, and failure reason. The uninstaller restores preexisting JSON byte-for-byte and removes installer-created files.
+The comparison records pass/fail, score, elapsed time, model calls, tokens when
+reported, human intervention, and major failure reason. Uninstall restores
+pre-existing managed files byte-for-byte.
 
 ### If it fails
 
-If a managed file changed after installation, inspect the diff. Use `--force` only when you intentionally want the manifest backup to replace that post-install edit.
+If a managed file changed after installation, inspect it. Use `--force` only
+when you intentionally want the saved pre-install bytes to replace that edit.
 
 ### Verify
 
 ```bash
-git -C "$TARGET_REPO" status --short
-test ! -e "$TARGET_REPO/.agent-quality/install-manifest.json"
+git -C /absolute/path/to/repository status --short
 ```
+
+Compare this output with the state recorded before installation.
 
 ### Undo
 
-Reinstall with Step 3 if you decide to keep the gate.
+Re-run Step 2 only if you choose to keep the completion gate.

@@ -8,7 +8,34 @@ permissions:
   contents: read
 
 jobs:
-  cpu-checks:
+  portable-base:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build and install the dependency-free wheel
+        run: |
+          python -m pip install --upgrade build
+          python -m build
+          python -m pip install .
+      - name: Portable source and unit checks
+        run: |
+          python scripts/lint_steps.py
+          python -m unittest discover -s evaluator/tests -v
+          python -m unittest discover -s frontier/tests -v
+          python -m unittest discover -s local/tests -v
+          python -m unittest discover -s tests -v
+
+  optional-integrations:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -18,10 +45,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Unit, contract, evidence, and documentation checks
-        run: make check
+      - name: Install pinned optional dependencies
+        run: python -m pip install ".[local,experiment]"
+      - name: Exercise local and AVO adapters without model calls
+        run: |
+          python -m unittest discover -s tests -p "test_local_*.py" -v
+          python -m unittest discover -s tests -p "test_avo_*.py" -v
+
+  optional-linux-containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - name: Validate Compose configuration without a GPU
         run: docker compose -f local/docker-compose.yml config --quiet
       - name: Build the locked sandbox without starting the model
         run: docker build -f local/Dockerfile.sandbox -t agent-quality-harness-ci .
-
