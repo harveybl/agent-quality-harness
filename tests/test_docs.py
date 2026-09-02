@@ -56,7 +56,8 @@ class DocumentationTests(unittest.TestCase):
             "no external paid routes",
             "max-review-calls",
             "max-repair-turns",
-            "no measured uplift",
+            "one hard-task observation",
+            "not a broad benchmark",
             "desktop is not qualified",
         ):
             self.assertIn(phrase, combined)

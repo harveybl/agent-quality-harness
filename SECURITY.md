@@ -10,6 +10,7 @@ This project executes repository-defined test commands and lets a model edit an 
 - Review and trust repository hooks once in Claude Code or Codex. A changed hook hash must be reviewed again.
 - The experimental CLI-only AVO command permits only bounded
   `--max-review-calls` and `--max-repair-turns`, refuses external paid route
-  variables, and may consume both personal subscriptions. There is no measured
-  uplift claim yet, and desktop is not qualified for this experiment.
+  variables, and may consume both personal subscriptions. One hard-task
+  observation measured uplift when a stronger evaluator was supplied; it is
+  not a broad benchmark. Desktop is not qualified for this experiment.
 - Report vulnerabilities privately through GitHub's security advisory flow.
