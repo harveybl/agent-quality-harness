@@ -17,7 +17,8 @@ no runtime dependencies.
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install agent-quality-harness
+python -m pip install \
+  "agent-quality-harness @ https://github.com/harveybl/agent-quality-harness/releases/download/v0.2.0/agent_quality_harness-0.2.0-py3-none-any.whl"
 aqh --help
 ```
 
@@ -29,7 +30,8 @@ Help lists `install`, `doctor`, `verify`, and `uninstall`.
 
 ### If it fails
 
-Use Python 3.11 or newer and resolve the first package-install error.
+Use Python 3.11 or newer and confirm that the pinned GitHub release asset is
+reachable. The project is distributed through its GitHub release, not PyPI.
 
 ### Verify
 

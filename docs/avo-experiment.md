@@ -22,7 +22,8 @@ capabilities.
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install "agent-quality-harness[experiment]"
+python -m pip install \
+  "agent-quality-harness[experiment] @ https://github.com/harveybl/agent-quality-harness/releases/download/v0.2.0/agent_quality_harness-0.2.0-py3-none-any.whl"
 ```
 
 This uses the normal logged-in `claude` and `codex` commands. It does not create

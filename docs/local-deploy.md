@@ -17,7 +17,8 @@ without changing the model server.
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install "agent-quality-harness[local]"
+python -m pip install \
+  "agent-quality-harness[local] @ https://github.com/harveybl/agent-quality-harness/releases/download/v0.2.0/agent_quality_harness-0.2.0-py3-none-any.whl"
 ```
 
 On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1`.
@@ -29,8 +30,9 @@ the local extra.
 
 ### If it fails
 
-Use Python 3.11 or newer and read the first package-resolution error. The local
-dependencies are intentionally pinned; do not loosen them silently.
+Use Python 3.11 or newer and read the first package-resolution error. Confirm
+that the pinned GitHub release asset is reachable; this project is not on PyPI.
+The local dependencies are intentionally pinned; do not loosen them silently.
 
 ### Verify
 

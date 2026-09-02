@@ -22,7 +22,8 @@ model's native agent loop.
 Frontier clients:
 
 ```bash
-python3 -m pip install agent-quality-harness
+python3 -m pip install \
+  "agent-quality-harness @ https://github.com/harveybl/agent-quality-harness/releases/download/v0.2.0/agent_quality_harness-0.2.0-py3-none-any.whl"
 cd /path/to/your/repository
 aqh install
 aqh doctor
@@ -32,7 +33,8 @@ aqh verify
 Local model against an endpoint you already run:
 
 ```bash
-python3 -m pip install "agent-quality-harness[local]"
+python3 -m pip install \
+  "agent-quality-harness[local] @ https://github.com/harveybl/agent-quality-harness/releases/download/v0.2.0/agent_quality_harness-0.2.0-py3-none-any.whl"
 aqh local doctor --endpoint http://127.0.0.1:8080/v1 --model qwen-local
 aqh local run /path/to/disposable-candidate \
   --endpoint http://127.0.0.1:8080/v1 --model qwen-local

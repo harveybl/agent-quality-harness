@@ -39,7 +39,7 @@ aqh doctor
 Local-model support is an optional package extra:
 
 ```bash
-pipx install 'agent-quality-harness[local]'
+python -m pip install 'agent-quality-harness[local] @ https://github.com/harveybl/agent-quality-harness/releases/download/v0.2.0/agent_quality_harness-0.2.0-py3-none-any.whl'
 aqh local doctor --endpoint http://127.0.0.1:8080/v1
 aqh local run --endpoint http://127.0.0.1:8080/v1
 ```
@@ -288,4 +288,3 @@ After implementation and all available tests:
 Publishing means updating the public GitHub repository, release artifacts, and
 companion Site only after these gates. No release or deployment occurs during
 implementation merely because unit tests pass.
-

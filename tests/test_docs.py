@@ -21,7 +21,8 @@ class DocumentationTests(unittest.TestCase):
         how = (ROOT / "docs/how-it-works.md").read_text(encoding="utf-8")
         security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
         for text in (readme, runbook):
-            self.assertIn('pip install "agent-quality-harness[local]"', text)
+            self.assertIn('pip install \\', text)
+            self.assertIn('"agent-quality-harness[local] @ https://github.com/', text)
             self.assertIn("aqh local doctor", text)
             self.assertIn("aqh local run", text)
         self.assertLessEqual(runbook.count("## Step "), 4)
@@ -61,11 +62,27 @@ class DocumentationTests(unittest.TestCase):
             "desktop is not qualified",
         ):
             self.assertIn(phrase, combined)
-        self.assertIn('pip install "agent-quality-harness[experiment]"', runbook)
+        self.assertIn('"agent-quality-harness[experiment] @ https://github.com/', runbook)
         self.assertIn("automatic full-run retries", runbook.lower())
         self.assertIn("danger-full-access", runbook)
         self.assertIn("disposable worktree", runbook)
         self.assertIn("machine-local absolute", combined)
+
+    def test_install_commands_use_the_pinned_github_release_not_pypi(self) -> None:
+        sources = [
+            (ROOT / "README.md").read_text(encoding="utf-8"),
+            (ROOT / "docs/frontier-deploy.md").read_text(encoding="utf-8"),
+            (ROOT / "docs/local-deploy.md").read_text(encoding="utf-8"),
+            (ROOT / "docs/avo-experiment.md").read_text(encoding="utf-8"),
+        ]
+        wheel = (
+            "https://github.com/harveybl/agent-quality-harness/releases/download/"
+            "v0.2.0/agent_quality_harness-0.2.0-py3-none-any.whl"
+        )
+        for text in sources:
+            self.assertIn(wheel, text)
+        self.assertIn("not PyPI", sources[1])
+        self.assertIn("not on PyPI", sources[2])
 
     def test_current_evidence_leads_with_the_qualified_matrix(self) -> None:
         text = (ROOT / "docs/evidence.md").read_text(encoding="utf-8")
