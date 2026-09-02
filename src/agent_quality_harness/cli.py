@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 from typing import Sequence
 
-from . import doctor, installer, uninstaller, verifier
+from . import doctor, installer, local_endpoint, uninstaller, verifier
 
 
 COMMANDS = (
@@ -50,6 +50,15 @@ def build_parser() -> argparse.ArgumentParser:
             command.add_argument("--target", type=Path, default=Path.cwd())
         elif name == "verify":
             command.add_argument("--target", type=Path, default=Path.cwd())
+        elif name == "local":
+            local_commands = command.add_subparsers(dest="local_command", required=True)
+            local_doctor = local_commands.add_parser(
+                "doctor", help="Probe an existing OpenAI-compatible local endpoint"
+            )
+            local_doctor.add_argument(
+                "--endpoint", default="http://127.0.0.1:8080/v1"
+            )
+            local_doctor.add_argument("--model")
     return parser
 
 
@@ -97,6 +106,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         for name, status in report["checks"].items():
             print(f"{status.upper()} {name}")
         return 0 if report["status"] == "pass" else 1
+    if args.command == "local" and args.local_command == "doctor":
+        report = local_endpoint.diagnose_endpoint(
+            args.endpoint, expected_model=args.model
+        )
+        print(f"endpoint: {report.endpoint}")
+        print(f"reachable: {'yes' if report.reachable else 'no'}")
+        print(f"healthy: {'yes' if report.healthy else 'no'}")
+        model_match = "not requested" if report.model_match is None else (
+            "yes" if report.model_match else "no"
+        )
+        print(f"model match: {model_match}")
+        print(f"models: {', '.join(report.model_ids) if report.model_ids else 'none'}")
+        print(f"containment: {report.containment_mode}")
+        missing = report.missing_optional_dependencies
+        print(f"local extra: {'ready' if not missing else 'missing ' + ', '.join(missing)}")
+        if report.error:
+            print(f"diagnostic: {report.error}")
+        return 0 if report.ready else 1
     print(f"aqh {args.command} is not available in this build", file=sys.stderr)
     return 2
 
