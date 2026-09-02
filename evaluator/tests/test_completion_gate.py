@@ -52,6 +52,8 @@ class CompletionGateTests(unittest.TestCase):
             "cwd": str(root),
             "session_id": "session-a",
             "turn_id": "turn-a",
+            "model": "fixture-model",
+            "permission_mode": "default",
             "stop_hook_active": False,
         }
         value.update(overrides)
@@ -71,9 +73,14 @@ class CompletionGateTests(unittest.TestCase):
     def test_passing_commands_allow_stop(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            result = self.gate.process(self.payload(root), self.fixture(root))
+            script = self.fixture(root)
+            payload = self.payload(root)
+            result = self.gate.process(payload, script)
+            state = json.loads(self.gate.state_path(root.resolve(), payload).read_text())
         self.assertNotIn("decision", result)
         self.assertIn("1/1 checks", result["systemMessage"])
+        self.assertEqual(state["model"], "fixture-model")
+        self.assertEqual(state["permission_mode"], "default")
 
     def test_failure_blocks_only_to_configured_budget(self) -> None:
         failed = [

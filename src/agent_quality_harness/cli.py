@@ -124,7 +124,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(
                 "latest evidence: "
                 f"{evidence['outcome']}, {evidence['check_count']} checks, "
-                f"{evidence['blocks']} blocks"
+                f"{evidence['blocks']} blocks, model {evidence['model']}"
             )
         for issue in report["issues"]:
             print(f"issue: {issue}")

@@ -149,6 +149,10 @@ def process(payload: dict[str, Any], script: Path) -> dict[str, Any]:
             "turn_id": str(
                 payload.get("turn_id") or payload.get("prompt_id") or "session-fallback"
             ),
+            "model": str(payload.get("model") or "unknown-model"),
+            "permission_mode": str(
+                payload.get("permission_mode") or "unknown-permission-mode"
+            ),
             "invocations": 0,
             "blocks": 0,
             "evaluations": [],

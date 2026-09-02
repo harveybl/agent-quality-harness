@@ -40,6 +40,8 @@ class DoctorTests(unittest.TestCase):
                 "cwd": str(root),
                 "session_id": "doctor-session",
                 "turn_id": "doctor-turn",
+                "model": "claude-sonnet-test",
+                "permission_mode": "default",
                 "stop_hook_active": False,
             }
             subprocess.run(
@@ -58,6 +60,7 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(result["latest_evidence"]["outcome"], "blocked-for-repair")
         self.assertEqual(result["latest_evidence"]["blocks"], 1)
         self.assertEqual(result["latest_evidence"]["check_count"], 1)
+        self.assertEqual(result["latest_evidence"]["model"], "claude-sonnet-test")
 
     def test_default_gate_is_identified_as_minimum_safety_only(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

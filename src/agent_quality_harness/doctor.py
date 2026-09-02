@@ -37,6 +37,10 @@ def _latest_evidence(root: Path) -> dict[str, Any] | None:
         "check_count": len(checks) if isinstance(checks, list) else 0,
         "session_id": state.get("session_id", "unknown-session"),
         "turn_id": state.get("turn_id", "session-fallback"),
+        "model": state.get("model", "unknown-model"),
+        "permission_mode": state.get(
+            "permission_mode", "unknown-permission-mode"
+        ),
     }
 
 
