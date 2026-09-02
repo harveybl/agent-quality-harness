@@ -18,7 +18,7 @@
 - Create: `src/agent_quality_harness/experiments/directive.py`
 - Create: `src/agent_quality_harness/experiments/supervisor.py`
 - Create: `tests/test_avo_supervisor.py`
-- Source reference: `/Users/brandonharvey/Development-Projects/agent-quality-supervisor-frontier-action-lifecycle/src/aqs/backends/strands_avo.py`
+- Source reference: `../agent-quality-supervisor-frontier-action-lifecycle/src/aqs/backends/strands_avo.py`
 
 - [ ] **Step 1: Write failing directive validation tests**
 
@@ -57,8 +57,8 @@ git commit -m "feat: add bounded tool-less AVO supervisor"
 **Files:**
 - Create: `src/agent_quality_harness/experiments/providers.py`
 - Create: `tests/test_avo_providers.py`
-- Source reference: `/Users/brandonharvey/Development-Projects/agent-quality-supervisor-frontier-action-lifecycle/src/aqs/adapters`
-- Source reference: `/Users/brandonharvey/Development-Projects/agent-quality-supervisor-frontier-action-lifecycle/src/aqs/backends/claude_subscription.py`
+- Source reference: `../agent-quality-supervisor-frontier-action-lifecycle/src/aqs/adapters`
+- Source reference: `../agent-quality-supervisor-frontier-action-lifecycle/src/aqs/backends/claude_subscription.py`
 
 - [ ] **Step 1: Write failing argv and parsing tests**
 
