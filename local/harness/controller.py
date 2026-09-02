@@ -114,25 +114,68 @@ class Controller:
         phase_seconds: dict[str, float] = {}
         model_calls = 0
         tokens = 0
+        checks: list[dict[str, Any]] = []
+
+        def finish(
+            terminal: str,
+            continuations: int,
+            failure: BaseException | None = None,
+        ) -> dict[str, Any]:
+            changed, _ = _diff(baseline, self.root)
+            ledger = {
+                "schema_version": 1,
+                "started_at": started,
+                "finished_at": datetime.now(timezone.utc).isoformat(),
+                "terminal_reason": terminal,
+                "model_calls": model_calls,
+                "tokens": tokens,
+                "tool_calls": tools.tool_calls,
+                "first_write_at": tools.first_write_at,
+                "changed_files": changed,
+                "checks": checks,
+                "continuations": continuations,
+                "automatic_run_retries": 0,
+                "phase_seconds": phase_seconds,
+                "environment": environment(self.root),
+            }
+            if failure is not None:
+                ledger["major_failure_reason"] = (
+                    f"{type(failure).__name__}: {failure}"
+                )[-4000:]
+            ledger.update(self.run_metadata)
+            write_ledger(self.root, ledger)
+            return ledger
 
         mark = time.monotonic()
-        plan_value, metrics = self.worker.plan(task, inventory, tools)
+        try:
+            plan_value, metrics = self.worker.plan(task, inventory, tools)
+        except Exception as failure:
+            phase_seconds["plan"] = round(time.monotonic() - mark, 3)
+            model_calls += int(getattr(failure, "model_calls", 0))
+            return finish("failed-plan", 0, failure)
         phase_seconds["plan"] = round(time.monotonic() - mark, 3)
         model_calls += int(metrics.get("model_calls", 1))
         tokens += int(metrics.get("tokens", 0))
-        plan = Plan.from_object(plan_value)
-        windows: dict[str, str] = {}
-        for change in plan.changes:
-            path = self.root / change.path
-            validate_anchor(path, change.line, change.anchor)
-            windows[change.path] = anchor_window(path, change.line)
+        try:
+            plan = Plan.from_object(plan_value)
+            windows: dict[str, str] = {}
+            for change in plan.changes:
+                path = self.root / change.path
+                validate_anchor(path, change.line, change.anchor)
+                windows[change.path] = anchor_window(path, change.line)
+        except Exception as failure:
+            return finish("failed-plan-validation", 0, failure)
 
         mark = time.monotonic()
-        metrics = self.worker.implement(task, plan, windows, tools)
+        try:
+            metrics = self.worker.implement(task, plan, windows, tools)
+        except Exception as failure:
+            phase_seconds["implementation"] = round(time.monotonic() - mark, 3)
+            model_calls += int(getattr(failure, "model_calls", 0))
+            return finish("failed-implementation", 0, failure)
         phase_seconds["implementation"] = round(time.monotonic() - mark, 3)
         model_calls += int(metrics.get("model_calls", 1))
         tokens += int(metrics.get("tokens", 0))
-        checks: list[dict[str, Any]] = []
         changed, diff = _diff(baseline, self.root)
         if not changed:
             terminal = "failed-no-change"
@@ -149,7 +192,12 @@ class Controller:
                 continuations = 1
                 evidence = (result["stderr_tail"] or result["stdout_tail"] or "no output").strip()
                 mark = time.monotonic()
-                metrics = self.worker.repair(task, evidence, diff, tools)
+                try:
+                    metrics = self.worker.repair(task, evidence, diff, tools)
+                except Exception as failure:
+                    phase_seconds["continuation"] = round(time.monotonic() - mark, 3)
+                    model_calls += int(getattr(failure, "model_calls", 0))
+                    return finish("failed-repair", continuations, failure)
                 phase_seconds["continuation"] = round(time.monotonic() - mark, 3)
                 model_calls += int(metrics.get("model_calls", 1))
                 tokens += int(metrics.get("tokens", 0))
@@ -158,26 +206,7 @@ class Controller:
                 terminal = "passed-after-continuation" if result["passed"] else "failed-after-bounded-continuation"
             else:
                 terminal = "failed"
-        changed, _ = _diff(baseline, self.root)
-        ledger = {
-            "schema_version": 1,
-            "started_at": started,
-            "finished_at": datetime.now(timezone.utc).isoformat(),
-            "terminal_reason": terminal,
-            "model_calls": model_calls,
-            "tokens": tokens,
-            "tool_calls": tools.tool_calls,
-            "first_write_at": tools.first_write_at,
-            "changed_files": changed,
-            "checks": checks,
-            "continuations": continuations,
-            "automatic_run_retries": 0,
-            "phase_seconds": phase_seconds,
-            "environment": environment(self.root),
-        }
-        ledger.update(self.run_metadata)
-        write_ledger(self.root, ledger)
-        return ledger
+        return finish(terminal, continuations)
 
 
 def main() -> int:

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import importlib.util
 from types import SimpleNamespace
 import unittest
 
-from local.harness.worker import _metrics
+from local.harness.worker import PhaseLimitError, _ModelCallBudget, _metrics
 
 
 class WorkerMetricsTests(unittest.TestCase):
@@ -40,6 +41,30 @@ class WorkerMetricsTests(unittest.TestCase):
         result = _metrics(SimpleNamespace(metrics=metrics))
 
         self.assertEqual(result, {"model_calls": 2, "tokens": 75})
+
+    def test_model_call_budget_stops_one_phase_without_retrying(self) -> None:
+        budget = _ModelCallBudget("implementation", maximum=2)
+
+        budget(object())
+        budget(object())
+        with self.assertRaisesRegex(PhaseLimitError, "implementation.*2 model calls"):
+            budget(object())
+
+        self.assertEqual(budget.calls, 3)
+
+    @unittest.skipUnless(importlib.util.find_spec("strands"), "local extra not installed")
+    def test_implementation_tools_exclude_navigation(self) -> None:
+        from local.harness.worker import StrandsWorker
+
+        tools = StrandsWorker._implementation_tools(SimpleNamespace())
+        names = {
+            getattr(tool, "tool_name", None)
+            or getattr(tool, "name", None)
+            or getattr(tool, "__name__", None)
+            for tool in tools
+        }
+
+        self.assertEqual(names, {"replace_text", "write_file", "run_public_tests"})
 
 
 if __name__ == "__main__":

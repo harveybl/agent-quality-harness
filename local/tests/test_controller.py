@@ -56,6 +56,13 @@ class FakeWorker:
         return {"model_calls": 1, "tokens": 10}
 
 
+class FailingPlanWorker:
+    def plan(self, task: str, inventory: list[str], tools: object) -> tuple[dict, dict]:
+        error = RuntimeError("structured plan exceeded its bounded phase")
+        error.model_calls = 7  # type: ignore[attr-defined]
+        raise error
+
+
 class ControllerTests(unittest.TestCase):
     def fixture(self, root: Path) -> None:
         (root / "starter").mkdir()
@@ -124,6 +131,20 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(loaded["changed_files"], ["starter/calculator.py"])
         self.assertIn("python", loaded["environment"])
         self.assertIn("started_at", ledger)
+
+    def test_phase_failure_is_ledgered_without_an_automatic_retry(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.fixture(root)
+
+            ledger = Controller(root, FailingPlanWorker()).run()
+            stored = json.loads((root / "runs/ledger.json").read_text())
+
+        self.assertEqual(ledger["terminal_reason"], "failed-plan")
+        self.assertEqual(ledger["model_calls"], 7)
+        self.assertEqual(ledger["automatic_run_retries"], 0)
+        self.assertIn("structured plan exceeded", ledger["major_failure_reason"])
+        self.assertEqual(stored["terminal_reason"], "failed-plan")
 
 
 if __name__ == "__main__":
