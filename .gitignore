@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
+.worktrees/
 .env
 .env.*
 models/
@@ -11,4 +12,3 @@ local/config.json
 .agent-quality-backups/
 *.install-backup
 .DS_Store
-
