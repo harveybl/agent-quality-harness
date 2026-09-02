@@ -19,9 +19,15 @@ def _metrics(result: Any) -> dict[str, int]:
     if metrics is None:
         return {"model_calls": 1, "tokens": 0}
     summary = metrics.get_summary() if hasattr(metrics, "get_summary") else {}
-    usage = summary.get("accumulatedUsage", {}) if isinstance(summary, dict) else {}
-    calls = summary.get("cycleCount", 1) if isinstance(summary, dict) else 1
-    return {"model_calls": int(calls or 1), "tokens": int(usage.get("totalTokens", 0) or 0)}
+    summary = summary if isinstance(summary, dict) else {}
+    usage = getattr(metrics, "accumulated_usage", None)
+    if not isinstance(usage, dict):
+        usage = summary.get("accumulated_usage") or summary.get("accumulatedUsage") or {}
+    calls = getattr(metrics, "cycle_count", None)
+    if calls is None:
+        calls = summary.get("total_cycles") or summary.get("cycleCount") or 1
+    tokens = usage.get("totalTokens") or usage.get("total_tokens") or 0
+    return {"model_calls": int(calls or 1), "tokens": int(tokens)}
 
 
 class StrandsWorker:
@@ -31,7 +37,11 @@ class StrandsWorker:
         self.model = OpenAIModel(
             client_args={"api_key": "local-not-a-secret", "base_url": endpoint},
             model_id=model_id,
-            params={"max_tokens": 8192, "temperature": 0.1, "stream_options": None},
+            params={
+                "max_tokens": 8192,
+                "temperature": 0.1,
+                "stream_options": {"include_usage": True},
+            },
         )
 
     def plan(self, task: str, inventory: list[str]) -> tuple[dict, dict]:
@@ -134,4 +144,3 @@ class StrandsWorker:
             f"TASK:\n{task}\nEVIDENCE:\n{evidence}\nCURRENT DIFF:\n{diff}"
         )
         return _metrics(result)
-

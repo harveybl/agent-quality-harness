@@ -48,6 +48,10 @@ class RuntimeFileTests(unittest.TestCase):
         for value in ("models/", "runs/", ".env", "local/config.json"):
             self.assertIn(value, ignored)
 
+    def test_local_streaming_requests_usage_metrics(self) -> None:
+        worker = (ROOT / "local/harness/worker.py").read_text(encoding="utf-8")
+        self.assertIn('"stream_options": {"include_usage": True}', worker)
+
 
 if __name__ == "__main__":
     unittest.main()
