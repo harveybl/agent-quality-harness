@@ -280,6 +280,8 @@ class CodexProvider(_Provider):
             "--json",
             "--model",
             self.model,
+            "--sandbox",
+            "danger-full-access",
             "--config",
             f'model_reasoning_effort="{self.effort}"',
             "--config",

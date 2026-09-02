@@ -83,6 +83,7 @@ class AvoProviderTests(unittest.TestCase):
         self.assertEqual(start.argv[:2], ("codex", "exec"))
         self.assertIn("--json", start.argv)
         self.assertIn("--cd", start.argv)
+        self.assertEqual(start.argv[start.argv.index("--sandbox") + 1], "danger-full-access")
         self.assertIn('model_reasoning_effort="high"', start.argv)
         self.assertIn("resume", resumed.argv)
         self.assertIn("thread-123", resumed.argv)
