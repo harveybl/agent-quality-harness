@@ -56,17 +56,18 @@ class RuntimeFileTests(unittest.TestCase):
         worker = (ROOT / "local/harness/worker.py").read_text(encoding="utf-8")
         self.assertIn("tools=self._plan_tools(tools)", worker)
         plan_tools = worker.split("def _plan_tools", 1)[1].split(
-            "def _implementation_tools", 1
+            "def _agent_tools", 1
         )[0]
         self.assertIn("def read_file", plan_tools)
         self.assertNotIn("def replace_text", plan_tools)
         self.assertNotIn("def write_file", plan_tools)
-        implementation_tools = worker.split("def _implementation_tools", 1)[1].split(
+        implementation_tools = worker.split("def _agent_tools", 1)[1].split(
             "def implement", 1
         )[0]
-        self.assertNotIn("def read_file", implementation_tools)
         self.assertIn("def replace_text", implementation_tools)
         self.assertIn("def write_file", implementation_tools)
+        controller = (ROOT / "local/harness/controller.py").read_text(encoding="utf-8")
+        self.assertGreaterEqual(controller.count("tools.reset_navigation_budget()"), 2)
 
 
 if __name__ == "__main__":

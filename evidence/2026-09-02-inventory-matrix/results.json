@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-02",
+  "task": {
+    "id": "APP-E2E-INVENTORY-FULFILLMENT-01",
+    "description": "Dependency-free inventory fulfillment console with deterministic state, responsive UI, browser workflows, and held-out state boundaries.",
+    "visible_gate": "logic, state, and five exhaustive browser workflows",
+    "held_out_cases": 5
+  },
+  "protocol": {
+    "automatic_full_run_retries": 0,
+    "frontier_auth": "existing personal Claude Max and ChatGPT/Codex CLI sessions",
+    "paid_api_routes": false,
+    "models": {
+      "claude": "claude-sonnet-5 high",
+      "codex": "gpt-5.6-luna high",
+      "supervisor": "claude-fable-5-1",
+      "qwen": "Qwen3.8-27B-Q8_0",
+      "muse": "Muse-Glimmer-30B Dynamic Q4_K_XL"
+    }
+  },
+  "frontier": [
+    {
+      "condition": "claude-clean",
+      "treatment_delivered": true,
+      "visible_pass": true,
+      "held_out_score": "3/5",
+      "task_pass": false,
+      "elapsed_seconds": 615.792,
+      "worker_cli_calls": 1,
+      "supervisor_calls": 0,
+      "output_tokens": 60569,
+      "human_intervention": false,
+      "major_failure": "Returned rows were not safely detached and invalid quantities were accepted."
+    },
+    {
+      "condition": "claude-native-hooks",
+      "treatment_delivered": true,
+      "visible_pass": true,
+      "held_out_score": "3/5",
+      "task_pass": false,
+      "elapsed_seconds": 500.376,
+      "worker_cli_calls": 1,
+      "supervisor_calls": 0,
+      "output_tokens": 48172,
+      "human_intervention": false,
+      "major_failure": "The visible gate passed but did not expose the same two held-out state defects."
+    },
+    {
+      "condition": "claude-avo-recovered",
+      "treatment_delivered": true,
+      "visible_pass": true,
+      "initial_held_out_score": "3/5",
+      "final_held_out_score": "5/5",
+      "task_pass": true,
+      "elapsed_seconds": 855.029,
+      "worker_cli_calls": 3,
+      "supervisor_calls": 2,
+      "worker_output_tokens": 75932,
+      "supervisor_tokens": 2599,
+      "human_intervention": true,
+      "major_failure": null,
+      "qualification": "The worker midpoint was preserved after a pre-review Claude JSON parser defect; the parser was fixed, then the same worker session completed two evidence-directed repairs without restarting the task."
+    },
+    {
+      "condition": "codex-clean",
+      "treatment_delivered": true,
+      "visible_pass": true,
+      "held_out_score": "4/5",
+      "task_pass": false,
+      "elapsed_seconds": 473.169,
+      "worker_cli_calls": 1,
+      "supervisor_calls": 0,
+      "output_tokens": 21347,
+      "human_intervention": false,
+      "major_failure": "Returned rows were not safely detached."
+    },
+    {
+      "condition": "codex-native-hooks-interactive",
+      "treatment_delivered": true,
+      "visible_pass": true,
+      "held_out_score": "3/5",
+      "task_pass": false,
+      "seconds_to_first_answer": 733,
+      "session_tokens": 213440,
+      "cached_input_tokens": 3864320,
+      "worker_cli_calls": 1,
+      "supervisor_calls": 0,
+      "human_intervention": true,
+      "major_failure": "The visible gate missed two held-out defects; the snapshotted Stop hook also lacked task-specific browser environment variables and looped setup-invalid until the operator stopped it.",
+      "qualification": "Codex project hooks were verified only in the interactive CLI; codex exec does not load them."
+    },
+    {
+      "condition": "codex-avo",
+      "treatment_delivered": true,
+      "visible_pass": true,
+      "initial_held_out_score": "3/5",
+      "final_held_out_score": "5/5",
+      "task_pass": true,
+      "elapsed_seconds": 1004.883,
+      "worker_cli_calls": 2,
+      "supervisor_calls": 1,
+      "worker_output_tokens": 46080,
+      "supervisor_tokens": 852,
+      "human_intervention": false,
+      "major_failure": null
+    }
+  ],
+  "local": [
+    {
+      "condition": "muse-hard-pre-fix",
+      "task_pass": false,
+      "elapsed_seconds": 84.128,
+      "changed_files": 0,
+      "automatic_full_run_retries": 0,
+      "human_intervention": false,
+      "major_failure": "The grounded planner reached its 8192-token output ceiling before returning the structured plan."
+    },
+    {
+      "condition": "qwen-hard-pre-fix",
+      "task_pass": false,
+      "elapsed_seconds": 227.281,
+      "changed_files": 0,
+      "automatic_full_run_retries": 0,
+      "human_intervention": true,
+      "major_failure": "The implementation phase inherited an exhausted navigation budget and repeated denied reads until stopped."
+    },
+    {
+      "condition": "qwen-final-harness-hard",
+      "task_pass": false,
+      "visible_pass": false,
+      "held_out_score": "1/5",
+      "elapsed_seconds": 167.906,
+      "model_calls": 40,
+      "tool_calls": 46,
+      "reported_tokens": 182365,
+      "changed_files": 3,
+      "automatic_full_run_retries": 0,
+      "human_intervention": false,
+      "major_failure": "The implementation request grew to 33628 tokens and exceeded the endpoint's 32768-token context. The revised harness stopped and ledgered the phase failure."
+    },
+    {
+      "condition": "qwen-final-harness-smoke",
+      "task_pass": true,
+      "elapsed_seconds": 10.59,
+      "model_calls": 7,
+      "tool_calls": 7,
+      "reported_tokens": 8433,
+      "automatic_full_run_retries": 0,
+      "human_intervention": false,
+      "major_failure": null
+    }
+  ]
+}

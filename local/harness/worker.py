@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
+import time
 from typing import Any
 
 from .contracts import Plan
@@ -15,14 +16,22 @@ contracts, harness code, or protected paths. Make the smallest change that satis
 Run public checks only after a write. Never restart the task or invent success."""
 
 MAX_MODEL_CALLS_PER_PHASE = 32
+MAX_SECONDS_PER_PHASE = 300
 
 
 class PhaseLimitError(RuntimeError):
     """Raised when one local agent phase exceeds its native model-call budget."""
 
-    def __init__(self, phase: str, maximum: int, calls: int) -> None:
+    def __init__(
+        self,
+        phase: str,
+        maximum: int,
+        calls: int,
+        description: str | None = None,
+    ) -> None:
         self.model_calls = calls
-        super().__init__(f"{phase} phase exceeded {maximum} model calls")
+        limit = description or f"{maximum} model calls"
+        super().__init__(f"{phase} phase exceeded {limit}")
 
 
 class PhaseExecutionError(RuntimeError):
@@ -37,10 +46,19 @@ class PhaseExecutionError(RuntimeError):
 class _ModelCallBudget:
     phase: str
     maximum: int = MAX_MODEL_CALLS_PER_PHASE
+    maximum_seconds: int = MAX_SECONDS_PER_PHASE
     calls: int = 0
+    started_at: float = field(default_factory=time.monotonic)
 
     def __call__(self, event: object) -> None:
         self.calls += 1
+        if time.monotonic() - self.started_at > self.maximum_seconds:
+            raise PhaseLimitError(
+                self.phase,
+                self.maximum_seconds,
+                self.calls,
+                f"{self.maximum_seconds}-second time limit",
+            )
         if self.calls > self.maximum:
             raise PhaseLimitError(self.phase, self.maximum, self.calls)
 
@@ -163,8 +181,10 @@ class StrandsWorker:
         return [list_files, search_text, read_file]
 
     @staticmethod
-    def _implementation_tools(tools: FileTools) -> list[Any]:
+    def _agent_tools(tools: FileTools) -> list[Any]:
         from strands import tool
+
+        navigation = StrandsWorker._plan_tools(tools)
 
         @tool
         def replace_text(path: str, old: str, new: str, line: int, anchor: str) -> str:
@@ -181,7 +201,7 @@ class StrandsWorker:
             """Run controller-owned public checks after at least one accepted write."""
             return tools.run_public_tests()
 
-        return [replace_text, write_file, run_public_tests]
+        return [*navigation, replace_text, write_file, run_public_tests]
 
     def implement(
         self,
@@ -194,7 +214,7 @@ class StrandsWorker:
 
         agent = Agent(
             model=self.model,
-            tools=self._implementation_tools(tools),
+            tools=self._agent_tools(tools),
             system_prompt=SYSTEM,
         )
         budget = self._limit(agent, "implementation")
@@ -212,8 +232,9 @@ class StrandsWorker:
         }
         try:
             result = agent(
-                "Implement directly from the carried plan and anchor windows. "
-                "Navigation is complete; use only write, exact replacement, and public-check tools.\n"
+                "Implement from the carried plan and anchor windows. Read only the source needed "
+                "to preserve surrounding behavior; do not rediscover the task or reread controller "
+                "checks unless a public check fails.\n"
                 f"TASK:\n{task}\nPLAN:\n{json.dumps(plan_value)}\nWINDOWS:\n{json.dumps(windows)}"
             )
         except Exception as error:
@@ -225,7 +246,7 @@ class StrandsWorker:
 
         agent = Agent(
             model=self.model,
-            tools=self._implementation_tools(tools),
+            tools=self._agent_tools(tools),
             system_prompt=SYSTEM,
         )
         budget = self._limit(agent, "repair")
@@ -233,7 +254,8 @@ class StrandsWorker:
             result = agent(
                 "This is the only gate-controlled continuation. Repair the exact observed failure "
                 "from the evidence and current diff without broadening scope, then run the relevant "
-                "public checks once. Navigation is complete.\n"
+                "public checks once. Use the evidence and diff before spending the fresh bounded "
+                "navigation budget.\n"
                 f"TASK:\n{task}\nEVIDENCE:\n{evidence}\nCURRENT DIFF:\n{diff}"
             )
         except Exception as error:

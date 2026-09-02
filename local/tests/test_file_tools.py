@@ -54,6 +54,8 @@ class FileToolsTests(unittest.TestCase):
             tools.list_files("starter")
             with self.assertRaisesRegex(ToolPolicyError, "navigation budget"):
                 tools.search_text("needle", "starter")
+            tools.reset_navigation_budget()
+            self.assertEqual(tools.search_text("needle", "starter"), ["starter/a.txt:1:needle"])
 
     def test_python_syntax_is_checked_before_write(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -90,4 +92,3 @@ class FileToolsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

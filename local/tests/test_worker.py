@@ -52,11 +52,18 @@ class WorkerMetricsTests(unittest.TestCase):
 
         self.assertEqual(budget.calls, 3)
 
+    def test_model_call_budget_also_stops_a_long_phase(self) -> None:
+        budget = _ModelCallBudget("implementation", maximum_seconds=1)
+        budget.started_at -= 2
+
+        with self.assertRaisesRegex(PhaseLimitError, "time limit"):
+            budget(object())
+
     @unittest.skipUnless(importlib.util.find_spec("strands"), "local extra not installed")
-    def test_implementation_tools_exclude_navigation(self) -> None:
+    def test_implementation_tools_have_fresh_bounded_navigation_and_writes(self) -> None:
         from local.harness.worker import StrandsWorker
 
-        tools = StrandsWorker._implementation_tools(SimpleNamespace())
+        tools = StrandsWorker._agent_tools(SimpleNamespace())
         names = {
             getattr(tool, "tool_name", None)
             or getattr(tool, "name", None)
@@ -64,7 +71,17 @@ class WorkerMetricsTests(unittest.TestCase):
             for tool in tools
         }
 
-        self.assertEqual(names, {"replace_text", "write_file", "run_public_tests"})
+        self.assertEqual(
+            names,
+            {
+                "list_files",
+                "search_text",
+                "read_file",
+                "replace_text",
+                "write_file",
+                "run_public_tests",
+            },
+        )
 
 
 if __name__ == "__main__":

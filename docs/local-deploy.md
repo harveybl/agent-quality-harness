@@ -114,7 +114,10 @@ Use a different `--model` only when `/v1/models` advertises that exact ID.
 Doctor reports reachability, health, exact model match, dependency state, and
 containment. The run writes `runs/hello-fix-qwen/runs/ledger.json`; its
 `automatic_run_retries` is `0` and `continuations` is at most the contract
-limit.
+limit. Planning, implementation, and repair each receive a fresh bounded
+navigation allowance and stop after 32 model calls or five minutes between
+model calls. A phase limit or model-context error is written as a failed ledger
+instead of restarting the task.
 
 ### If it fails
 

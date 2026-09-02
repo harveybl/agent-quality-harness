@@ -43,16 +43,18 @@ aqh local run /path/to/disposable-candidate \
 - Model weights are never bundled. You supply and checksum a GGUF file.
 - Model names are not hard-coded: use the exact ID advertised by `/v1/models`
   for Qwen, Muse, or another compatible local model.
-- The published model evidence is one development slice, not a broad benchmark or a guarantee.
+- The published model evidence is one hard task plus small qualification slices, not a broad benchmark or a guarantee.
 - A failed gate may request one bounded continuation. The harness never automatically retries a full model run.
 - No API key, Bedrock account, AWS account, or direct model billing is required for the frontier track; it uses your existing Claude Code and Codex login.
-- The AVO path is experimental, may consume both personal subscriptions, uses
-  no external paid routes, and has no measured uplift claim yet. Desktop is not
-  qualified for AVO; use the native CLIs for auditable session receipts.
+- The AVO path is experimental, may consume both personal subscriptions, and
+  uses no external paid routes. On one hard task it repaired both frontier arms
+  to 5/5 when given stronger evaluator evidence, with substantial added time
+  and usage. Desktop is not qualified for AVO; use the native CLIs for auditable
+  session receipts.
 
 Start with [`examples/hello-fix`](examples/hello-fix), then use [`docs/ablation.md`](docs/ablation.md) to compare clean and enhanced conditions.
 
 ## Status
 
 Release candidate under test. Nothing is published until the cross-platform,
-native-client, local-model, quality-comparison, and Fable 5.1 gates pass.
+native-client, local-model, quality-comparison, and final Fable 5.1 gates pass.

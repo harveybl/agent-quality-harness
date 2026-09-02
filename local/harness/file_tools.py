@@ -72,6 +72,10 @@ class FileTools:
         self.navigation_calls += 1
         self.tool_calls += 1
 
+    def reset_navigation_budget(self) -> None:
+        """Start a fresh bounded navigation phase without resetting evidence counts."""
+        self.navigation_calls = 0
+
     def list_files(self, relative: str = ".") -> list[str]:
         self._navigate()
         path = self._resolve(relative)
@@ -177,4 +181,3 @@ class FileTools:
             "stdout_tail": process.stdout[-4000:],
             "stderr_tail": process.stderr[-6000:],
         }
-

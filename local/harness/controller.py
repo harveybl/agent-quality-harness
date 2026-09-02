@@ -166,6 +166,7 @@ class Controller:
         except Exception as failure:
             return finish("failed-plan-validation", 0, failure)
 
+        tools.reset_navigation_budget()
         mark = time.monotonic()
         try:
             metrics = self.worker.implement(task, plan, windows, tools)
@@ -191,6 +192,7 @@ class Controller:
             elif config["max_continuations"] == 1:
                 continuations = 1
                 evidence = (result["stderr_tail"] or result["stdout_tail"] or "no output").strip()
+                tools.reset_navigation_budget()
                 mark = time.monotonic()
                 try:
                     metrics = self.worker.repair(task, evidence, diff, tools)
