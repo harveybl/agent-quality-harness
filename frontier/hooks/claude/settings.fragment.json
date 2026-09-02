@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.agent-quality/completion_gate.py\"",
+            "timeout": 1800,
+            "statusMessage": "Running deterministic completion checks"
+          }
+        ]
+      }
+    ]
+  }
+}
+
