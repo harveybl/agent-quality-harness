@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "models": [
+    {
+      "id": "qwen3.8-27b-q8-tested-artifact",
+      "filename": "Qwen3.8-27B-Q8_0.gguf",
+      "sha256": "a680f44a06920e5d689774823782006aa3acc8db95750323373b24139b67e348",
+      "size_bytes": 29047086048,
+      "source": "user-supplied; this repository does not redistribute weights",
+      "status": "tested"
+    }
+  ]
+}
+

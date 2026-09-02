@@ -1,0 +1,10 @@
+{
+  "model_alias": "qwen-local",
+  "endpoint": "http://model:8080/v1",
+  "context_size": 65536,
+  "gpu_layers": 999,
+  "temperature": 0.1,
+  "max_continuations": 1,
+  "automatic_run_retries": 0
+}
+

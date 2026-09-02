@@ -4,6 +4,7 @@ import importlib
 import json
 from pathlib import Path
 import subprocess
+import shutil
 import sys
 import tempfile
 import unittest
@@ -129,6 +130,7 @@ class CompletionGateTests(unittest.TestCase):
         self.assertEqual(path_a, path_b)
         self.assertNotEqual(path_a, path_c)
 
+    @unittest.skipUnless(shutil.which("git"), "Git-backed protected-path integration test")
     def test_changed_protected_path_blocks_even_when_checks_pass(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -159,4 +161,3 @@ class CompletionGateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
