@@ -1,0 +1,10 @@
+.git
+.github
+models
+local/models
+runs
+**/__pycache__
+*.pyc
+.env
+.env.*
+
