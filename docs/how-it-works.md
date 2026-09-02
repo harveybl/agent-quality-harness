@@ -2,7 +2,7 @@
 
 ## Frontier path
 
-Claude Code and Codex retain their native agent loops. A repository-local synchronous `Stop` hook calls `evaluator/completion_gate.py`. The gate runs deterministic argument-array commands, checks that protected Git paths remain clean, and either allows the stop or returns exact failure evidence. `max_blocks` limits how many continuations the gate may request.
+Claude Code and Codex retain their native agent loops. A repository-local synchronous `Stop` hook calls the installed `.agent-quality/completion_gate.py`. The gate runs deterministic argument-array commands, checks that protected Git paths remain clean, and either allows the stop or returns exact failure evidence. `max_blocks` limits how many continuations the gate may request.
 
 The installer changes only these target paths:
 

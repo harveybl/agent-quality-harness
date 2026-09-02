@@ -63,6 +63,17 @@ class DocumentationTests(unittest.TestCase):
             self.assertIn(phrase, combined)
         self.assertIn('pip install "agent-quality-harness[experiment]"', runbook)
         self.assertIn("automatic full-run retries", runbook.lower())
+        self.assertIn("danger-full-access", runbook)
+        self.assertIn("disposable worktree", runbook)
+        self.assertIn("machine-local absolute", combined)
+
+    def test_current_evidence_leads_with_the_qualified_matrix(self) -> None:
+        text = (ROOT / "docs/evidence.md").read_text(encoding="utf-8")
+        self.assertIn("native hooks", text)
+        self.assertIn("3/5 to 5/5", text)
+        self.assertIn("Qwen hit the endpoint's 32K context", text)
+        self.assertIn("Muse reached its generation ceiling", text)
+        self.assertIn("2026-09-02-inventory-matrix/summary.md", text)
 
     def test_all_repository_relative_markdown_links_exist(self) -> None:
         missing: list[str] = []

@@ -56,5 +56,6 @@ Start with [`examples/hello-fix`](examples/hello-fix), then use [`docs/ablation.
 
 ## Status
 
-Release candidate under test. Nothing is published until the cross-platform,
-native-client, local-model, quality-comparison, and final Fable 5.1 gates pass.
+Version 0.2.0 is qualified by the cross-platform unit suite, native-client and
+local-model observations, the matched quality comparison, fresh-wheel lifecycle
+test, and independent Fable 5.1 review described in the public evidence.

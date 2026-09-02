@@ -9,6 +9,16 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class PackagingTests(unittest.TestCase):
+    def test_release_version_is_final_and_matches_runtime(self) -> None:
+        config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+        runtime = (ROOT / "src/agent_quality_harness/__init__.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertEqual(config["project"]["version"], "0.2.0")
+        self.assertIn('__version__ = "0.2.0"', runtime)
+        self.assertNotIn("dev", config["project"]["version"])
+
     def test_base_is_dependency_free_and_local_extra_is_exactly_pinned(self) -> None:
         config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 

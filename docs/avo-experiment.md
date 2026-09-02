@@ -30,6 +30,12 @@ an auth home, copy credentials, disable the worker's native tools, or replace
 account settings. The supervisor alone has tools and MCP disabled; it receives
 only the task, Git diff, and deterministic failure evidence.
 
+The Codex worker is deliberately launched with `danger-full-access` so its
+native CLI can edit and test the supplied candidate without approval prompts.
+Use AVO only in the disposable worktree named on the command line, with
+no credentials or production data. This permission applies to the Codex worker,
+not to the tool-less Fable supervisor.
+
 ## Verify without model calls
 
 ```bash
@@ -41,7 +47,7 @@ protected paths, separate usage totals, and zero automatic full-run retries.
 
 ## Run one explicit live condition
 
-Start from a disposable clean Git worktree. Put the task in `task.md` and use
+Start from a clean disposable Git worktree. Put the task in `task.md` and use
 the same gate schema shown in the [frontier runbook](frontier-deploy.md). Do not
 also install the completion hook unless the intentionally named experiment arm
 is “hooks plus AVO.”
@@ -70,3 +76,8 @@ elapsed time, calls, tokens, repair counts, and `automatic_run_retries: 0`.
 For a fair result, compare this against a clean native run with identical task,
 starting commit, model, effort, permissions, evaluator, and time limit. One run
 per arm is an observation, not a general performance conclusion.
+
+AQH hook commands contain machine-local absolute Python and repository paths.
+Do not commit installed `.claude/settings.json`, `.codex/hooks.json`, or
+`.agent-quality/` changes for coworkers; each person should run `aqh install`
+in their own checkout and use `aqh uninstall` before sharing a clean diff.
