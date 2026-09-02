@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 from typing import Sequence
 
-from . import installer, uninstaller
+from . import doctor, installer, uninstaller
 
 
 COMMANDS = (
@@ -46,6 +46,8 @@ def build_parser() -> argparse.ArgumentParser:
                 action="store_true",
                 help="Discard later edits to managed files and restore pre-install bytes",
             )
+        elif name == "doctor":
+            command.add_argument("--target", type=Path, default=Path.cwd())
     return parser
 
 
@@ -70,6 +72,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         uninstaller.uninstall(args.target, force=args.force)
         print("Restored the repository to its exact pre-install state.")
         return 0
+    if args.command == "doctor":
+        report = doctor.diagnose(args.target)
+        print(f"status: {report['status']}")
+        print(f"clients: {', '.join(report['tools'])}")
+        print(f"gate: {report['gate_kind']}")
+        if report["latest_evidence"] is None:
+            print("latest evidence: none yet")
+        else:
+            evidence = report["latest_evidence"]
+            print(
+                "latest evidence: "
+                f"{evidence['outcome']}, {evidence['check_count']} checks, "
+                f"{evidence['blocks']} blocks"
+            )
+        for issue in report["issues"]:
+            print(f"issue: {issue}")
+        print(f"next: {report['recommendation']}")
+        return 0 if report["status"] == "ok" else 1
     print(f"aqh {args.command} is not available in this build", file=sys.stderr)
     return 2
 

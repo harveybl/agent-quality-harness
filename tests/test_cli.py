@@ -106,6 +106,18 @@ class CliTests(unittest.TestCase):
 
         self.assertTrue(args.update)
 
+    def test_doctor_prints_a_compact_health_report(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            subprocess.run(["git", "init", "-q", root], check=True)
+            self.assertEqual(self.run_cli("install", cwd=root).returncode, 0)
+
+            process = self.run_cli("doctor", cwd=root)
+
+            self.assertEqual(process.returncode, 0, process.stderr)
+            self.assertIn("status: ok", process.stdout)
+            self.assertIn("gate: minimum", process.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

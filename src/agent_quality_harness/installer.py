@@ -176,7 +176,8 @@ def _install_new(
     selected: list[str],
     gate: bytes,
 ) -> dict[str, Any]:
-    desired_hooks = build_hooks(Path(sys.executable).resolve(), root)
+    interpreter = Path(sys.executable).resolve()
+    desired_hooks = build_hooks(interpreter, root)
     outputs: dict[Path, bytes] = {
         relative: resource_bytes(resource_name)
         for relative, resource_name in RESOURCE_PATHS.items()
@@ -216,6 +217,8 @@ def _install_new(
             "schema_version": 1,
             "state": "complete",
             "installed_at": datetime.now(timezone.utc).isoformat(),
+            "target": str(root),
+            "interpreter": str(interpreter),
             "tools": selected,
             "files": records,
         }
@@ -296,6 +299,8 @@ def install(
         same_request = (
             existing.get("tools") == selected
             and gate_record.get("after_sha256") == sha256_bytes(gate)
+            and existing.get("target") == str(root)
+            and existing.get("interpreter") == str(Path(sys.executable).resolve())
         )
         if same_request:
             return existing

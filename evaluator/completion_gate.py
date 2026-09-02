@@ -139,11 +139,20 @@ def process(payload: dict[str, Any], script: Path) -> dict[str, Any]:
         raise ValueError("completion gate must be installed at <workspace>/.agent-quality")
     config = load_config(script)
     path = state_path(work, payload)
-    stable_turn = bool(payload.get("turn_id") or payload.get("prompt_id"))
-    if path.is_file() and (stable_turn or payload.get("stop_hook_active")):
+    if path.is_file():
         state = json.loads(path.read_text(encoding="utf-8"))
     else:
-        state = {"schema_version": 1, "invocations": 0, "blocks": 0, "evaluations": []}
+        state = {
+            "schema_version": 1,
+            "cwd": str(work),
+            "session_id": str(payload.get("session_id") or "unknown-session"),
+            "turn_id": str(
+                payload.get("turn_id") or payload.get("prompt_id") or "session-fallback"
+            ),
+            "invocations": 0,
+            "blocks": 0,
+            "evaluations": [],
+        }
     state["invocations"] += 1
     rows = run_commands(work, config)
     protected = protected_path_check(work, config["protected_paths"])

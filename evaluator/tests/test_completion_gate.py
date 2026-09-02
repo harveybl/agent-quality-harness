@@ -100,6 +100,57 @@ class CompletionGateTests(unittest.TestCase):
         self.assertNotIn("decision", exhausted)
         self.assertIn("exhausted", exhausted["systemMessage"])
 
+    def test_missing_turn_id_still_exhausts_one_block_budget(self) -> None:
+        failed = [
+            {
+                "name": "tests",
+                "argv": ["test"],
+                "passed": False,
+                "exit_code": 1,
+                "timed_out": False,
+                "stdout_tail": "",
+                "stderr_tail": "still failing",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            script = self.fixture(root, max_blocks=1)
+            payload = self.payload(root, turn_id=None, stop_hook_active=False)
+            with mock.patch.object(self.gate, "run_commands", return_value=failed):
+                first = self.gate.process(payload, script)
+                exhausted = self.gate.process(payload, script)
+
+        self.assertEqual(first["decision"], "block")
+        self.assertNotIn("decision", exhausted)
+        self.assertIn("exhausted", exhausted["systemMessage"])
+
+    def test_payload_without_ids_uses_a_deterministic_bounded_fallback(self) -> None:
+        failed = [
+            {
+                "name": "tests",
+                "argv": ["test"],
+                "passed": False,
+                "exit_code": 1,
+                "timed_out": False,
+                "stdout_tail": "",
+                "stderr_tail": "still failing",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            script = self.fixture(root, max_blocks=1)
+            payload = self.payload(
+                root, session_id=None, turn_id=None, stop_hook_active=False
+            )
+            self.assertEqual(
+                self.gate.state_path(root, payload), self.gate.state_path(root, payload)
+            )
+            with mock.patch.object(self.gate, "run_commands", return_value=failed):
+                self.gate.process(payload, script)
+                exhausted = self.gate.process(payload, script)
+
+        self.assertIn("exhausted", exhausted["systemMessage"])
+
     def test_timeout_is_returned_as_repair_evidence(self) -> None:
         timeout = [
             {
