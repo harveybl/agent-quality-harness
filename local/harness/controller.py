@@ -71,9 +71,16 @@ def _diff(before: dict[str, str], root: Path) -> tuple[list[str], str]:
 
 
 class Controller:
-    def __init__(self, root: Path, worker: Worker) -> None:
+    def __init__(
+        self,
+        root: Path,
+        worker: Worker,
+        *,
+        run_metadata: dict[str, Any] | None = None,
+    ) -> None:
         self.root = root.resolve()
         self.worker = worker
+        self.run_metadata = dict(run_metadata or {})
 
     def run(self) -> dict[str, Any]:
         started = datetime.now(timezone.utc).isoformat()
@@ -168,6 +175,7 @@ class Controller:
             "phase_seconds": phase_seconds,
             "environment": environment(self.root),
         }
+        ledger.update(self.run_metadata)
         write_ledger(self.root, ledger)
         return ledger
 

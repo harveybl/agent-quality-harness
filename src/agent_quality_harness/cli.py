@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 import sys
 from typing import Sequence
 
-from . import doctor, installer, local_endpoint, uninstaller, verifier
+from . import doctor, installer, local_endpoint, local_runner, uninstaller, verifier
 
 
 COMMANDS = (
@@ -59,6 +60,14 @@ def build_parser() -> argparse.ArgumentParser:
                 "--endpoint", default="http://127.0.0.1:8080/v1"
             )
             local_doctor.add_argument("--model")
+            local_run = local_commands.add_parser(
+                "run", help="Run the enhanced worker against an existing endpoint"
+            )
+            local_run.add_argument("workspace", type=Path)
+            local_run.add_argument(
+                "--endpoint", default="http://127.0.0.1:8080/v1"
+            )
+            local_run.add_argument("--model", required=True)
     return parser
 
 
@@ -124,6 +133,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         if report.error:
             print(f"diagnostic: {report.error}")
         return 0 if report.ready else 1
+    if args.command == "local" and args.local_command == "run":
+        ledger = local_runner.run_local(args.workspace, args.endpoint, args.model)
+        print(json.dumps(ledger, indent=2, sort_keys=True))
+        return 0 if ledger["terminal_reason"].startswith("passed") else 1
     print(f"aqh {args.command} is not available in this build", file=sys.stderr)
     return 2
 
