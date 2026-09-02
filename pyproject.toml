@@ -12,14 +12,18 @@ license = "Apache-2.0"
 license-files = ["LICENSE"]
 dependencies = []
 
+[project.optional-dependencies]
+local = [
+  "strands-agents[openai]==1.54.0",
+  "openai==2.54.0",
+  "pydantic==2.13.5",
+]
+
 [project.scripts]
 aqh = "agent_quality_harness.cli:main"
 
 [tool.setuptools]
-package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
+package-dir = {agent_quality_harness = "src/agent_quality_harness", "agent_quality_harness.local_harness" = "local/harness"}
 
 [tool.setuptools.package-data]
 agent_quality_harness = ["resources/*.json", "resources/*.py", "resources/*.txt"]
