@@ -27,11 +27,12 @@ The controller lifecycle is:
 
 1. **Anchored plan:** native object containing `path`, exact `line`, `anchor`, `change`, and `acceptance_ids`.
 2. **Carried context:** the controller gives implementation a ±30-line window around each validated anchor.
-3. **Bounded tools:** `navigation_budget` caps reads/searches; `mutable_paths` and `protected_paths` enforce edit scope.
+3. **Bounded tools:** each phase gets a fresh `navigation_budget` for reads and searches; `mutable_paths` and `protected_paths` enforce edit scope.
 4. **Syntax-safe edit:** Python writes are parsed before acceptance.
 5. **Tests after first write:** `public_check_argv` is unavailable until a candidate changed.
 6. **Evidence-directed continuation:** only a changed failing candidate can receive the current diff and exact test evidence, at most once.
-7. **Score ledger:** `runs/ledger.json` records `terminal_reason`, `model_calls`, `tokens`, `tool_calls`, `first_write_at`, `changed_files`, `checks`, `continuations`, `automatic_run_retries`, timings, and environment hashes.
+7. **Hard phase stop:** planning, implementation, and repair stop after 32 model calls or five minutes between model calls; a model/context failure is ledgered rather than retried.
+8. **Score ledger:** `runs/ledger.json` records `terminal_reason`, `model_calls`, `tokens`, `tool_calls`, `first_write_at`, `changed_files`, `checks`, `continuations`, `automatic_run_retries`, timings, and environment hashes.
 
 ## Runtime topology
 

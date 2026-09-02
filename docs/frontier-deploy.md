@@ -114,9 +114,12 @@ claude
 ```
 
 In Claude Code, inspect `/hooks`, then ask it to run the configured checks and
-finish. Repeat with `codex` and inspect `/hooks`. If using a supported desktop
-client, open this exact repository and perform the same check there as a
-separate qualification.
+finish. Repeat with an interactive `codex` session and inspect `/hooks`.
+Repository hooks are not loaded by `codex exec`; use the interactive CLI for a
+Codex hook treatment. If a gate command needs environment variables, export
+them before starting `claude` or `codex` so the Stop-hook subprocess inherits
+them. If using a supported desktop client, open this exact repository and
+perform the same check there as a separate qualification.
 
 ### Expect
 
@@ -126,7 +129,10 @@ Each tested client identifies the repository-local hook and surfaces
 ### If it fails
 
 Confirm the exact repository is open, trust the displayed hook hash if you
-recognize it, and inspect `aqh doctor`. Do not add a second login flow.
+recognize it, inspect `aqh doctor`, and confirm any variables required by the
+test command were present when the native client started. After changing hook
+configuration, start a new native session because clients may snapshot hook
+commands at launch. Do not add a second login flow.
 
 ### Verify
 

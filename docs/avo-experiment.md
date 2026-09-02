@@ -6,12 +6,16 @@ separate from the everyday completion gate: the completion gate provides exact
 failure evidence inside one native client, while AVO adds a second model call
 that can redirect a bounded repair turn.
 
-There is no measured uplift claim yet. The point of this command is to produce
-matched evidence. A run may consume both personal subscriptions: Codex can be
-the worker while Claude is the supervisor. There are no external paid routes;
-the command refuses API-key/base-URL and hosted-provider route variables.
-Desktop is not qualified for AVO because exact noninteractive session resume
-and usage receipts are CLI capabilities.
+One hard-task observation found a real uplift: both supervised frontier arms
+improved from an initially failing held-out score to 5/5 when the supervisor
+received the stronger evaluator failures. That result also cost materially more
+time and model usage and is not a broad benchmark. See the
+[qualified matrix](../evidence/2026-09-02-inventory-matrix/summary.md). A run may
+consume both personal subscriptions: Codex can be the worker while Claude is
+the supervisor. There are no external paid routes; the command refuses
+API-key/base-URL and hosted-provider route variables. Desktop is not qualified
+for AVO because exact noninteractive session resume and usage receipts are CLI
+capabilities.
 
 ## Install
 
