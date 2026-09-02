@@ -1,0 +1,5 @@
+Inspect the repository and state a short implementation plan before editing.
+Do not modify evaluator or protected paths to make a candidate pass.
+Run the relevant deterministic checks after the first accepted write.
+Treat completion-gate feedback as evidence for focused repair, not permission to restart the task.
+Report changed files, checks run, and any remaining failure honestly.
