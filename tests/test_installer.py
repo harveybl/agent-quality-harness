@@ -93,9 +93,12 @@ class InstallerTests(unittest.TestCase):
     def test_hook_commands_support_repository_paths_with_spaces(self) -> None:
         installer.install(self.root)
         value = json.loads((self.root / ".codex/hooks.json").read_text())
-        encoded = json.dumps(value)
-        self.assertIn(str(self.root), encoded)
-        self.assertNotIn("$(", encoded)
+        commands = [
+            value["hooks"][event][0]["hooks"][0]["command"]
+            for event in ("SessionStart", "Stop")
+        ]
+        self.assertTrue(all(str(self.root) in command for command in commands))
+        self.assertTrue(all("$(" not in command for command in commands))
 
     def test_failure_during_second_client_write_restores_entire_tree(self) -> None:
         keep = self.root / ".claude/settings.json"

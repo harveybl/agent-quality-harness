@@ -18,12 +18,20 @@ class HookTests(unittest.TestCase):
         hooks = build_hooks(interpreter, target, platform="posix")
 
         encoded = json.dumps(hooks)
+        commands = [
+            hooks["hooks"][event][0]["hooks"][0]["command"]
+            for event in ("SessionStart", "Stop")
+        ]
         self.assertIn("SessionStart", hooks["hooks"])
         self.assertIn("Stop", hooks["hooks"])
         self.assertNotIn("$(", encoded)
         self.assertNotIn("python3", encoded)
-        self.assertIn(str(target / ".agent-quality/completion_gate.py"), encoded)
-        self.assertIn(str(target / ".agent-quality/quality_context.py"), encoded)
+        self.assertTrue(
+            any(str(target / ".agent-quality/completion_gate.py") in item for item in commands)
+        )
+        self.assertTrue(
+            any(str(target / ".agent-quality/quality_context.py") in item for item in commands)
+        )
 
     def test_windows_hook_command_uses_windows_quoting(self) -> None:
         hooks = build_hooks(

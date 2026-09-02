@@ -19,6 +19,15 @@ class PackagingTests(unittest.TestCase):
         self.assertIn('__version__ = "0.2.0"', runtime)
         self.assertNotIn("dev", config["project"]["version"])
 
+    def test_missing_extra_guidance_does_not_point_to_unpublished_pypi_name(self) -> None:
+        for path in (
+            ROOT / "src/agent_quality_harness/experiments/providers.py",
+            ROOT / "src/agent_quality_harness/experiments/supervisor.py",
+        ):
+            text = path.read_text(encoding="utf-8")
+            self.assertNotIn("pip install 'agent-quality-harness", text)
+            self.assertIn("pinned release", text)
+
     def test_base_is_dependency_free_and_local_extra_is_exactly_pinned(self) -> None:
         config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 

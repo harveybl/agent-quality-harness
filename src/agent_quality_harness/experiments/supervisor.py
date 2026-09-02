@@ -22,7 +22,8 @@ def _strands_agent(**kwargs: Any) -> tuple[Any, type[Any]]:
         from strands.session.file_session_manager import FileSessionManager
     except ImportError as error:
         raise ImportError(
-            "AVO supervisor requires: pip install 'agent-quality-harness[experiment]'"
+            "AVO supervisor requires the experiment extra from the pinned release; "
+            "see docs/avo-experiment.md"
         ) from error
 
     class DirectiveModel(BaseModel):

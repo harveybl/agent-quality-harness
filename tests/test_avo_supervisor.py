@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -118,7 +119,8 @@ class AvoSupervisorTests(unittest.TestCase):
             )
 
             self.assertTrue(session_root.is_dir())
-            self.assertEqual(session_root.stat().st_mode & 0o777, 0o700)
+            if os.name != "nt":
+                self.assertEqual(session_root.stat().st_mode & 0o777, 0o700)
         self.assertEqual(captured["tools"], [])
         self.assertEqual(captured["session_id"], "review-1")
         self.assertEqual(captured["session_root"], session_root.resolve())

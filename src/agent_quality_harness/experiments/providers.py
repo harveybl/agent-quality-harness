@@ -417,7 +417,8 @@ def claude_strands_model(
         from strands.models import Model
     except ImportError as error:
         raise ImportError(
-            "AVO supervisor requires: pip install 'agent-quality-harness[experiment]'"
+            "AVO supervisor requires the experiment extra from the pinned release; "
+            "see docs/avo-experiment.md"
         ) from error
 
     if not model_id or effort not in {"low", "medium", "high", "xhigh", "max"}:
