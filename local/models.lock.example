@@ -6,9 +6,11 @@
       "filename": "Qwen3.8-27B-Q8_0.gguf",
       "sha256": "a680f44a06920e5d689774823782006aa3acc8db95750323373b24139b67e348",
       "size_bytes": 29047086048,
-      "source": "user-supplied; this repository does not redistribute weights",
+      "source_repository": "unsloth/Qwen3.8-27B-GGUF",
+      "source_revision": "f1bfb127c64f7072bdd2cad55f258b9c8b2910fe",
+      "source_url": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/f1bfb127c64f7072bdd2cad55f258b9c8b2910fe/Qwen3.8-27B-Q8_0.gguf",
+      "license": "Apache-2.0; review the upstream model card before use",
       "status": "tested"
     }
   ]
 }
-
