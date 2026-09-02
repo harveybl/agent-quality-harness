@@ -76,6 +76,36 @@ class CliTests(unittest.TestCase):
             self.assertTrue((root / ".claude/settings.json").is_file())
             self.assertFalse((root / ".codex/hooks.json").exists())
 
+    def test_uninstall_restores_the_repository(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            subprocess.run(["git", "init", "-q", root], check=True)
+            self.assertEqual(self.run_cli("install", cwd=root).returncode, 0)
+
+            process = self.run_cli("uninstall", cwd=root)
+
+            self.assertEqual(process.returncode, 0, process.stderr)
+            self.assertIn("Restored", process.stdout)
+            self.assertFalse((root / ".agent-quality").exists())
+
+    def test_uninstall_force_is_an_explicit_option(self) -> None:
+        parser = __import__(
+            "agent_quality_harness.cli", fromlist=["build_parser"]
+        ).build_parser()
+
+        args = parser.parse_args(["uninstall", "--force"])
+
+        self.assertTrue(args.force)
+
+    def test_install_update_is_an_explicit_option(self) -> None:
+        parser = __import__(
+            "agent_quality_harness.cli", fromlist=["build_parser"]
+        ).build_parser()
+
+        args = parser.parse_args(["install", "--update"])
+
+        self.assertTrue(args.update)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -15,6 +15,7 @@ def install(
     tools: list[str],
     *,
     gate_source: Path | None = None,
+    update: bool = False,
 ) -> dict[str, Any]:
     selected = sorted(set(tools))
     if selected == ["claude", "codex"]:
@@ -23,7 +24,7 @@ def install(
         tool = selected[0]
     else:
         raise ValueError("tools must contain claude, codex, or both")
-    return _install(target, tool=tool, gate_source=gate_source)
+    return _install(target, tool=tool, gate_source=gate_source, update=update)
 
 
 def main() -> int:
@@ -31,9 +32,10 @@ def main() -> int:
     parser.add_argument("--target", type=Path, default=Path.cwd())
     parser.add_argument("--tool", choices=("claude", "codex", "both"), default="both")
     parser.add_argument("--gate", type=Path)
+    parser.add_argument("--update", action="store_true")
     args = parser.parse_args()
     tools = ["claude", "codex"] if args.tool == "both" else [args.tool]
-    manifest = install(args.target, tools, gate_source=args.gate)
+    manifest = install(args.target, tools, gate_source=args.gate, update=args.update)
     print(f"installed: {', '.join(manifest['tools'])}")
     print("next: run `aqh doctor`, then open the repository in your native client")
     return 0

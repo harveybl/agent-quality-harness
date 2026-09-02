@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 from typing import Sequence
 
-from . import installer
+from . import installer, uninstaller
 
 
 COMMANDS = (
@@ -34,6 +34,18 @@ def build_parser() -> argparse.ArgumentParser:
                 "--tool", choices=("claude", "codex", "both"), default="both"
             )
             command.add_argument("--gate", type=Path)
+            command.add_argument(
+                "--update",
+                action="store_true",
+                help="Transactionally replace an existing different installation",
+            )
+        elif name == "uninstall":
+            command.add_argument("--target", type=Path, default=Path.cwd())
+            command.add_argument(
+                "--force",
+                action="store_true",
+                help="Discard later edits to managed files and restore pre-install bytes",
+            )
     return parser
 
 
@@ -44,6 +56,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.target,
             tool=args.tool,
             gate_source=args.gate,
+            update=args.update,
         )
         names = {
             ("claude",): "Claude Code",
@@ -52,6 +65,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         }[tuple(manifest["tools"])]
         print(f"Installed Agent Quality Harness for {names}.")
         print("Next: run `aqh doctor`, then open the repository in your native client.")
+        return 0
+    if args.command == "uninstall":
+        uninstaller.uninstall(args.target, force=args.force)
+        print("Restored the repository to its exact pre-install state.")
         return 0
     print(f"aqh {args.command} is not available in this build", file=sys.stderr)
     return 2

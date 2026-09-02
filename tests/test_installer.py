@@ -8,6 +8,7 @@ import unittest
 from unittest import mock
 
 from agent_quality_harness import installer
+from agent_quality_harness import uninstaller
 
 
 def snapshot(root: Path) -> dict[str, bytes]:
@@ -113,6 +114,77 @@ class InstallerTests(unittest.TestCase):
                 installer.install(self.root)
 
         self.assertEqual(snapshot(self.root), before)
+
+    def test_uninstall_restores_original_bytes(self) -> None:
+        settings = self.root / ".claude/settings.json"
+        settings.parent.mkdir()
+        original = b'{"custom":true,"hooks":{}}\n'
+        settings.write_bytes(original)
+        installer.install(self.root)
+
+        uninstaller.uninstall(self.root)
+
+        self.assertEqual(settings.read_bytes(), original)
+        self.assertFalse((self.root / ".codex/hooks.json").exists())
+        self.assertFalse((self.root / ".agent-quality").exists())
+        self.assertFalse((self.root / ".agent-quality-backups").exists())
+
+    def test_uninstall_refuses_later_user_edit_without_force(self) -> None:
+        installer.install(self.root)
+        settings = self.root / ".claude/settings.json"
+        settings.write_bytes(b'{"later":"user edit"}\n')
+
+        with self.assertRaisesRegex(RuntimeError, "changed after installation"):
+            uninstaller.uninstall(self.root)
+
+        self.assertEqual(settings.read_bytes(), b'{"later":"user edit"}\n')
+        self.assertTrue((self.root / ".agent-quality/install-manifest.json").exists())
+
+    def test_force_uninstall_explicitly_restores_over_a_later_edit(self) -> None:
+        settings = self.root / ".claude/settings.json"
+        settings.parent.mkdir()
+        settings.write_bytes(b'{"original":true}\n')
+        installer.install(self.root)
+        settings.write_bytes(b'{"later":"user edit"}\n')
+
+        uninstaller.uninstall(self.root, force=True)
+
+        self.assertEqual(settings.read_bytes(), b'{"original":true}\n')
+
+    def test_different_install_requires_explicit_update(self) -> None:
+        installer.install(self.root)
+
+        with self.assertRaisesRegex(RuntimeError, "--update"):
+            installer.install(self.root, tool="claude")
+
+    def test_explicit_update_changes_client_selection(self) -> None:
+        installer.install(self.root)
+
+        manifest = installer.install(self.root, tool="claude", update=True)
+
+        self.assertEqual(manifest["tools"], ["claude"])
+        self.assertTrue((self.root / ".claude/settings.json").is_file())
+        self.assertFalse((self.root / ".codex/hooks.json").exists())
+
+    def test_failed_explicit_update_restores_the_previous_install(self) -> None:
+        first_manifest = installer.install(self.root)
+        before = snapshot(self.root)
+        real_atomic_write = installer._atomic_write
+
+        def fail_on_new_claude(path: Path, content: bytes) -> None:
+            if path == self.root / ".claude/settings.json":
+                raise OSError("simulated update failure")
+            real_atomic_write(path, content)
+
+        with mock.patch.object(installer, "_atomic_write", side_effect=fail_on_new_claude):
+            with self.assertRaisesRegex(OSError, "simulated update failure"):
+                installer.install(self.root, tool="claude", update=True)
+
+        self.assertEqual(snapshot(self.root), before)
+        current = json.loads(
+            (self.root / ".agent-quality/install-manifest.json").read_text()
+        )
+        self.assertEqual(current, first_manifest)
 
 
 if __name__ == "__main__":

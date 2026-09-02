@@ -142,13 +142,11 @@ def _restore(
         _remove_empty_parents(backup_root.parent, root)
 
 
-def _existing_install(root: Path, selected: list[str]) -> dict[str, Any] | None:
+def _existing_install(root: Path) -> dict[str, Any] | None:
     manifest_path = root / ".agent-quality/install-manifest.json"
     if not manifest_path.exists():
         return None
     manifest = _load_object(manifest_path)
-    if manifest.get("tools") != selected:
-        raise RuntimeError("a different installation exists; uninstall it first")
     records = manifest.get("files")
     if not isinstance(records, dict):
         raise RuntimeError("the installation manifest is invalid")
@@ -173,25 +171,17 @@ def _gate_bytes(gate_source: Path | None) -> bytes:
     return _json_bytes(value)
 
 
-def install(
-    target: Path,
-    *,
-    tool: str | None = None,
-    gate_source: Path | None = None,
+def _install_new(
+    root: Path,
+    selected: list[str],
+    gate: bytes,
 ) -> dict[str, Any]:
-    """Install both native-client treatments, or one selected treatment."""
-    root = _git_root(target)
-    selected = _selected_tools(tool)
-    existing = _existing_install(root, selected)
-    if existing is not None:
-        return existing
-
     desired_hooks = build_hooks(Path(sys.executable).resolve(), root)
     outputs: dict[Path, bytes] = {
         relative: resource_bytes(resource_name)
         for relative, resource_name in RESOURCE_PATHS.items()
     }
-    outputs[Path(".agent-quality/gate.json")] = _gate_bytes(gate_source)
+    outputs[Path(".agent-quality/gate.json")] = gate
     for selected_tool in selected:
         relative = TOOL_PATHS[selected_tool]
         outputs[relative] = _json_bytes(
@@ -234,3 +224,84 @@ def install(
     except BaseException:
         _restore(root, originals, backup_root)
         raise
+
+
+def _replace_install(
+    root: Path,
+    selected: list[str],
+    gate: bytes,
+) -> dict[str, Any]:
+    """Replace a valid install and restore it exactly if replacement fails."""
+    directory_paths = [
+        Path(".agent-quality"),
+        Path(".agent-quality-backups"),
+    ]
+    file_paths = list(TOOL_PATHS.values())
+    with tempfile.TemporaryDirectory(prefix="aqh-update-") as temporary:
+        snapshot_root = Path(temporary)
+        existing_directories: set[Path] = set()
+        existing_files: set[Path] = set()
+        for relative in directory_paths:
+            source = root / relative
+            if source.is_dir():
+                shutil.copytree(source, snapshot_root / relative)
+                existing_directories.add(relative)
+        for relative in file_paths:
+            source = root / relative
+            if source.is_file():
+                destination = snapshot_root / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, destination)
+                existing_files.add(relative)
+
+        from .uninstaller import uninstall
+
+        try:
+            uninstall(root)
+            return _install_new(root, selected, gate)
+        except BaseException:
+            for relative in directory_paths:
+                destination = root / relative
+                if destination.is_dir():
+                    shutil.rmtree(destination)
+                elif destination.exists():
+                    destination.unlink()
+                if relative in existing_directories:
+                    shutil.copytree(snapshot_root / relative, destination)
+            for relative in file_paths:
+                destination = root / relative
+                destination.unlink(missing_ok=True)
+                if relative in existing_files:
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(snapshot_root / relative, destination)
+                else:
+                    _remove_empty_parents(destination.parent, root)
+            raise
+
+
+def install(
+    target: Path,
+    *,
+    tool: str | None = None,
+    gate_source: Path | None = None,
+    update: bool = False,
+) -> dict[str, Any]:
+    """Install both native-client treatments, or one selected treatment."""
+    root = _git_root(target)
+    selected = _selected_tools(tool)
+    gate = _gate_bytes(gate_source)
+    existing = _existing_install(root)
+    if existing is not None:
+        gate_record = existing["files"].get(".agent-quality/gate.json", {})
+        same_request = (
+            existing.get("tools") == selected
+            and gate_record.get("after_sha256") == sha256_bytes(gate)
+        )
+        if same_request:
+            return existing
+        if not update:
+            raise RuntimeError(
+                "a different installation exists; rerun with `aqh install --update`"
+            )
+        return _replace_install(root, selected, gate)
+    return _install_new(root, selected, gate)
