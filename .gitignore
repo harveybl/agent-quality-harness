@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.env
+.env.*
+models/
+runs/
+local/config.json
+.agent-quality-state/
+.agent-quality-backups/
+*.install-backup
+.DS_Store
+
