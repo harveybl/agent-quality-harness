@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import sys
 from typing import Sequence
+
+from . import installer
 
 
 COMMANDS = (
@@ -24,12 +27,32 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     for name, help_text in COMMANDS:
-        subparsers.add_parser(name, help=help_text)
+        command = subparsers.add_parser(name, help=help_text)
+        if name == "install":
+            command.add_argument("--target", type=Path, default=Path.cwd())
+            command.add_argument(
+                "--tool", choices=("claude", "codex", "both"), default="both"
+            )
+            command.add_argument("--gate", type=Path)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == "install":
+        manifest = installer.install(
+            args.target,
+            tool=args.tool,
+            gate_source=args.gate,
+        )
+        names = {
+            ("claude",): "Claude Code",
+            ("codex",): "Codex",
+            ("claude", "codex"): "Claude Code and Codex",
+        }[tuple(manifest["tools"])]
+        print(f"Installed Agent Quality Harness for {names}.")
+        print("Next: run `aqh doctor`, then open the repository in your native client.")
+        return 0
     print(f"aqh {args.command} is not available in this build", file=sys.stderr)
     return 2
 

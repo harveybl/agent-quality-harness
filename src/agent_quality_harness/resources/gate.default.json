@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "max_blocks": 3,
+  "protected_paths": [],
+  "commands": [
+    {
+      "name": "git-diff-check",
+      "argv": ["git", "diff", "--check"],
+      "timeout_seconds": 60
+    }
+  ]
+}

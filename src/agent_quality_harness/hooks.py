@@ -11,7 +11,12 @@ from typing import Any
 
 
 def resource_bytes(name: str) -> bytes:
-    allowed = {"completion_gate.py", "quality_context.py", "quality_contract.txt"}
+    allowed = {
+        "completion_gate.py",
+        "gate.default.json",
+        "quality_context.py",
+        "quality_contract.txt",
+    }
     if name not in allowed:
         raise ValueError(f"unknown harness resource: {name}")
     return resources.files("agent_quality_harness.resources").joinpath(name).read_bytes()
