@@ -75,6 +75,25 @@ def _events(output: str) -> list[dict[str, Any]]:
     return values
 
 
+def _claude_json_result(output: str) -> dict[str, Any]:
+    """Normalize Claude's legacy object and current verbose event-array receipts."""
+    try:
+        value = json.loads(output)
+    except json.JSONDecodeError as error:
+        raise RuntimeError("Claude supervisor returned invalid JSON") from error
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, list):
+        results = [
+            row
+            for row in value
+            if isinstance(row, dict) and row.get("type") == "result"
+        ]
+        if len(results) == 1:
+            return results[0]
+    raise RuntimeError("Claude supervisor returned invalid JSON")
+
+
 def _metric(row: dict[str, Any], key: str, *, default: int | None = None) -> int:
     if key not in row:
         if default is None:
@@ -523,9 +542,7 @@ def claude_strands_model(
             if process.returncode != 0:
                 diagnostic = (process.stderr or process.stdout or "no output").strip()[-4000:]
                 raise RuntimeError(f"Claude supervisor failed: {diagnostic}")
-            value = json.loads(process.stdout)
-            if not isinstance(value, dict):
-                raise RuntimeError("Claude supervisor returned invalid JSON")
+            value = _claude_json_result(process.stdout)
             payload = value.get("structured_output")
             if not isinstance(payload, dict) and isinstance(value.get("result"), str):
                 try:

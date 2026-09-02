@@ -8,7 +8,10 @@ from unittest.mock import patch
 
 from agent_quality_harness.experiments.directive import Directive, ReviewPacket
 from agent_quality_harness.experiments.supervisor import AvoSupervisor
-from agent_quality_harness.experiments.providers import claude_strands_model
+from agent_quality_harness.experiments.providers import (
+    _claude_json_result,
+    claude_strands_model,
+)
 
 
 class ScriptedAgent:
@@ -37,6 +40,22 @@ class ScriptedAgent:
 
 
 class AvoSupervisorTests(unittest.TestCase):
+    def test_current_claude_verbose_json_array_selects_one_result_event(self) -> None:
+        output = (
+            '[{"type":"system","apiKeySource":"none"},'
+            '{"type":"result","structured_output":{"action":"redirect"},'
+            '"usage":{"input_tokens":10,"output_tokens":4}}]'
+        )
+
+        result = _claude_json_result(output)
+
+        self.assertEqual(result["structured_output"], {"action": "redirect"})
+        self.assertEqual(result["usage"]["output_tokens"], 4)
+
+    def test_claude_json_object_receipt_remains_supported(self) -> None:
+        output = '{"structured_output":{"action":"stop"},"usage":{}}'
+        self.assertEqual(_claude_json_result(output)["structured_output"]["action"], "stop")
+
     def test_directive_requires_bounded_action_and_nonempty_text(self) -> None:
         for action in ("continue", "redirect", "stop"):
             directive = Directive.from_object(
