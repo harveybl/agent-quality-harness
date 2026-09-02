@@ -18,6 +18,10 @@ local = [
   "openai==2.54.0",
   "pydantic==2.13.5",
 ]
+experiment = [
+  "strands-agents==1.54.0",
+  "pydantic==2.13.5",
+]
 
 [project.scripts]
 aqh = "agent_quality_harness.cli:main"

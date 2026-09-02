@@ -32,6 +32,14 @@ class PackagingTests(unittest.TestCase):
         for module in ("contracts.py", "controller.py", "file_tools.py", "ledger.py", "worker.py"):
             self.assertTrue((ROOT / "local/harness" / module).is_file(), module)
 
+    def test_experiment_extra_contains_only_supervisor_dependencies(self) -> None:
+        config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+
+        self.assertEqual(
+            config["project"]["optional-dependencies"]["experiment"],
+            ["strands-agents==1.54.0", "pydantic==2.13.5"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
