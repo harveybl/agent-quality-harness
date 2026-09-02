@@ -52,6 +52,14 @@ class RuntimeFileTests(unittest.TestCase):
         worker = (ROOT / "local/harness/worker.py").read_text(encoding="utf-8")
         self.assertIn('"stream_options": {"include_usage": True}', worker)
 
+    def test_planner_gets_bounded_read_only_tools(self) -> None:
+        worker = (ROOT / "local/harness/worker.py").read_text(encoding="utf-8")
+        self.assertIn("tools=self._plan_tools(tools)", worker)
+        plan_tools = worker.split("def _plan_tools", 1)[1].split("def _agent_tools", 1)[0]
+        self.assertIn("def read_file", plan_tools)
+        self.assertNotIn("def replace_text", plan_tools)
+        self.assertNotIn("def write_file", plan_tools)
+
 
 if __name__ == "__main__":
     unittest.main()

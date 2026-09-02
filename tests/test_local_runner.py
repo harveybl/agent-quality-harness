@@ -18,7 +18,7 @@ class FakeWorker:
     def __init__(self) -> None:
         self.calls: list[str] = []
 
-    def plan(self, task: str, inventory: list[str]) -> tuple[dict, dict]:
+    def plan(self, task: str, inventory: list[str], tools: object) -> tuple[dict, dict]:
         self.calls.append("plan")
         return (
             {

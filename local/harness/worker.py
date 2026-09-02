@@ -44,7 +44,12 @@ class StrandsWorker:
             },
         )
 
-    def plan(self, task: str, inventory: list[str]) -> tuple[dict, dict]:
+    def plan(
+        self,
+        task: str,
+        inventory: list[str],
+        tools: FileTools,
+    ) -> tuple[dict, dict]:
         from pydantic import BaseModel, Field
         from strands import Agent
 
@@ -58,9 +63,14 @@ class StrandsWorker:
         class PlanModel(BaseModel):
             changes: list[ChangeModel]
 
-        agent = Agent(model=self.model, system_prompt=SYSTEM)
+        agent = Agent(
+            model=self.model,
+            tools=self._plan_tools(tools),
+            system_prompt=SYSTEM,
+        )
         result = agent(
-            "Return a native plan object for this task. Each change must name an inventory file, "
+            "Inspect the inventory with the read-only tools, then return a native plan object. "
+            "Each change must name an inventory file, "
             "an exact current line number and anchor text, the intended change, and acceptance IDs.\n\n"
             f"TASK:\n{task}\n\nINVENTORY:\n" + "\n".join(inventory),
             structured_output_model=PlanModel,
@@ -69,6 +79,31 @@ class StrandsWorker:
         if structured is None:
             raise RuntimeError("Strands did not return native structured plan output")
         return structured.model_dump(), _metrics(result)
+
+    @staticmethod
+    def _plan_tools(tools: FileTools) -> list[Any]:
+        from strands import tool
+
+        @tool
+        def list_files(path: str = ".") -> list[str]:
+            """List at most 100 repository files under a path."""
+            return tools.list_files(path)
+
+        @tool
+        def search_text(needle: str, path: str = ".") -> list[str]:
+            """Search literal text in repository files within the navigation budget."""
+            return tools.search_text(needle, path)
+
+        @tool
+        def read_file(path: str, start_line: int = 1, end_line: int = 240) -> str:
+            """Read a bounded, line-numbered range from one repository file."""
+            content = tools.read_file(path, start_line, end_line)
+            return "\n".join(
+                f"{number}: {line}"
+                for number, line in enumerate(content.splitlines(), start_line)
+            )
+
+        return [list_files, search_text, read_file]
 
     @staticmethod
     def _agent_tools(tools: FileTools) -> list[Any]:

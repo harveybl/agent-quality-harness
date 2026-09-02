@@ -16,7 +16,7 @@ from .ledger import environment, write_ledger
 
 
 class Worker(Protocol):
-    def plan(self, task: str, inventory: list[str]) -> tuple[dict, dict]: ...
+    def plan(self, task: str, inventory: list[str], tools: FileTools) -> tuple[dict, dict]: ...
     def implement(self, task: str, plan: Plan, windows: dict[str, str], tools: FileTools) -> dict: ...
     def repair(self, task: str, evidence: str, diff: str, tools: FileTools) -> dict: ...
 
@@ -116,7 +116,7 @@ class Controller:
         tokens = 0
 
         mark = time.monotonic()
-        plan_value, metrics = self.worker.plan(task, inventory)
+        plan_value, metrics = self.worker.plan(task, inventory, tools)
         phase_seconds["plan"] = round(time.monotonic() - mark, 3)
         model_calls += int(metrics.get("model_calls", 1))
         tokens += int(metrics.get("tokens", 0))

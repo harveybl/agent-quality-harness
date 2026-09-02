@@ -12,9 +12,11 @@ class FakeWorker:
     def __init__(self, *, repair: bool) -> None:
         self.should_repair = repair
         self.calls: list[str] = []
+        self.plan_read: str | None = None
 
-    def plan(self, task: str, inventory: list[str]) -> tuple[dict, dict]:
+    def plan(self, task: str, inventory: list[str], tools: object) -> tuple[dict, dict]:
         self.calls.append("plan")
+        self.plan_read = tools.read_file("starter/calculator.py", 1, 2)
         return (
             {
                 "changes": [
@@ -106,6 +108,7 @@ class ControllerTests(unittest.TestCase):
             worker = FakeWorker(repair=False)
             ledger = Controller(root, worker).run()
         self.assertEqual(worker.calls, ["plan", "implement", "repair"])
+        self.assertIn("return 0", worker.plan_read or "")
         self.assertEqual(ledger["terminal_reason"], "failed-after-bounded-continuation")
         self.assertEqual(ledger["continuations"], 1)
 
@@ -125,4 +128,3 @@ class ControllerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
