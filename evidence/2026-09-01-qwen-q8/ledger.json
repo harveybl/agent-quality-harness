@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-01",
+  "task": "sanitized Helios review-semantics vertical slice",
+  "model": "Qwen3.8-27B",
+  "quantization": "Q8_0",
+  "model_artifact_sha256": "a680f44a06920e5d689774823782006aa3acc8db95750323373b24139b67e348",
+  "task_pass": true,
+  "controller_score": "5/5",
+  "corrected_public_score": "6/6",
+  "elapsed_seconds": 402.7,
+  "model_calls": {
+    "plan": 9,
+    "implementation": 25,
+    "continuation": 13,
+    "total": 47
+  },
+  "human_intervention": 0,
+  "continuations": 1,
+  "automatic_run_retries": 0,
+  "terminal_reason": "public gate and independent review passed",
+  "limitations": "one private development slice, one counted run, no clean Qwen baseline in this evidence package"
+}
+

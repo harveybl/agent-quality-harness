@@ -1,0 +1,16 @@
+{
+  "mutable_paths": ["starter"],
+  "protected_paths": ["public_checks", "contract.json", "task.md"],
+  "public_check_argv": [
+    "python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "public_checks",
+    "-v"
+  ],
+  "navigation_budget": 8,
+  "max_continuations": 1
+}
+
