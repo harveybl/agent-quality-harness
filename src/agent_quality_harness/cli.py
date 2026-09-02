@@ -6,7 +6,9 @@ import argparse
 import json
 from pathlib import Path
 import sys
+import tempfile
 from typing import Sequence
+from uuid import uuid4
 
 from . import doctor, installer, local_endpoint, local_runner, uninstaller, verifier
 
@@ -68,6 +70,24 @@ def build_parser() -> argparse.ArgumentParser:
                 "--endpoint", default="http://127.0.0.1:8080/v1"
             )
             local_run.add_argument("--model", required=True)
+        elif name == "experiment":
+            experiment_commands = command.add_subparsers(
+                dest="experiment_command", required=True
+            )
+            avo = experiment_commands.add_parser(
+                "avo", help="Run bounded Claude-reviewed repair cycles"
+            )
+            avo.add_argument("workspace", type=Path)
+            avo.add_argument("--task-file", type=Path, required=True)
+            avo.add_argument("--gate", type=Path, required=True)
+            avo.add_argument("--worker", choices=("claude", "codex"), required=True)
+            avo.add_argument("--worker-model", required=True)
+            avo.add_argument("--worker-effort", default="high")
+            avo.add_argument("--supervisor-model", required=True)
+            avo.add_argument("--supervisor-effort", default="high")
+            avo.add_argument("--max-review-calls", type=int, default=2)
+            avo.add_argument("--max-repair-turns", type=int, default=2)
+            avo.add_argument("--session-root", type=Path)
     return parser
 
 
@@ -135,6 +155,61 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0 if report.ready else 1
     if args.command == "local" and args.local_command == "run":
         ledger = local_runner.run_local(args.workspace, args.endpoint, args.model)
+        print(json.dumps(ledger, indent=2, sort_keys=True))
+        return 0 if ledger["terminal_reason"].startswith("passed") else 1
+    if args.command == "experiment" and args.experiment_command == "avo":
+        # Keep experiment-only imports out of the dependency-free everyday path.
+        from .experiments.avo import AvoRun, load_gate
+        from .experiments.providers import (
+            ClaudeProvider,
+            CodexProvider,
+            claude_strands_model,
+        )
+        from .experiments.supervisor import AvoSupervisor
+
+        workspace = args.workspace.resolve()
+        task_path = args.task_file
+        if not task_path.is_absolute():
+            task_path = workspace / task_path
+        gate_path = args.gate
+        if not gate_path.is_absolute():
+            gate_path = workspace / gate_path
+        try:
+            task = task_path.read_text(encoding="utf-8")
+        except OSError as error:
+            raise ValueError(f"cannot read AVO task file {task_path}: {error}") from error
+        commands, protected_paths = load_gate(gate_path)
+        worker = (
+            ClaudeProvider(args.worker_model, args.worker_effort)
+            if args.worker == "claude"
+            else CodexProvider(args.worker_model, args.worker_effort)
+        )
+        session_root = (
+            args.session_root.resolve()
+            if args.session_root is not None
+            else Path(tempfile.gettempdir()) / "agent-quality-harness" / "avo-sessions"
+        )
+        supervisor_model = claude_strands_model(
+            model_id=args.supervisor_model,
+            effort=args.supervisor_effort,
+            working_dir=session_root,
+        )
+        supervisor = AvoSupervisor(
+            workspace=workspace,
+            session_root=session_root,
+            session_id=f"avo-{uuid4()}",
+            model=supervisor_model,
+        )
+        ledger = AvoRun(
+            workspace=workspace,
+            task=task,
+            worker=worker,
+            supervisor=supervisor,
+            evaluator_argv=commands,
+            protected_paths=protected_paths,
+            max_review_calls=args.max_review_calls,
+            max_repair_turns=args.max_repair_turns,
+        ).run()
         print(json.dumps(ledger, indent=2, sort_keys=True))
         return 0 if ledger["terminal_reason"].startswith("passed") else 1
     print(f"aqh {args.command} is not available in this build", file=sys.stderr)

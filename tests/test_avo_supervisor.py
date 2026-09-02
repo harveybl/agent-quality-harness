@@ -4,9 +4,11 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 from agent_quality_harness.experiments.directive import Directive, ReviewPacket
 from agent_quality_harness.experiments.supervisor import AvoSupervisor
+from agent_quality_harness.experiments.providers import claude_strands_model
 
 
 class ScriptedAgent:
@@ -118,6 +120,48 @@ class AvoSupervisorTests(unittest.TestCase):
                     model=object(),
                     agent_factory=lambda **kwargs: ScriptedAgent(),
                 )
+
+    def test_pinned_strands_agent_accepts_native_cli_model_without_external_tools(self) -> None:
+        try:
+            import strands  # noqa: F401
+        except ImportError:
+            self.skipTest("experiment optional dependencies are not installed")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workspace = root / "candidate"
+            workspace.mkdir()
+            model = claude_strands_model(
+                model_id="fable", effort="high", working_dir=root / "model"
+            )
+            supervisor = AvoSupervisor(
+                workspace=workspace,
+                session_root=root / "sessions",
+                session_id="strands-smoke",
+                model=model,
+            )
+            output = SimpleNamespace(
+                returncode=0,
+                stderr="",
+                stdout=(
+                    '{"structured_output":{"action":"stop","strategy":"done",'
+                    '"instruction":"Stop.","rationale":"Checks pass."},'
+                    '"usage":{"input_tokens":10,"output_tokens":4}}'
+                ),
+            )
+            with patch(
+                "agent_quality_harness.experiments.providers.subprocess.run",
+                return_value=output,
+            ) as native_run:
+                directive = supervisor.decide(
+                    ReviewPacket("task", "diff", "failed", 0, 2)
+                )
+
+        self.assertEqual(directive.action, "stop")
+        self.assertEqual(supervisor.last_usage.total_tokens, 14)
+        self.assertEqual(supervisor.last_usage.tool_calls, 0)
+        argv = native_run.call_args.args[0]
+        self.assertEqual(argv[0], "claude")
+        self.assertEqual(argv[argv.index("--tools") + 1], "")
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import asyncio
 import json
 import os
 from pathlib import Path
@@ -346,3 +347,223 @@ class CodexProvider(_Provider):
             exit_code=exit_code,
             final_output=final_rows[-1],
         )
+
+
+def claude_supervisor_argv(
+    *,
+    model: str,
+    effort: str,
+    schema: dict[str, Any],
+    system_prompt: str,
+) -> tuple[str, ...]:
+    """Return the explicit tool-less supervisor command, preserving normal auth."""
+    return (
+        "claude",
+        "--print",
+        "--verbose",
+        "--output-format",
+        "json",
+        "--input-format",
+        "text",
+        "--model",
+        model,
+        "--effort",
+        effort,
+        "--tools",
+        "",
+        "--disable-slash-commands",
+        "--strict-mcp-config",
+        "--mcp-config",
+        '{"mcpServers":{}}',
+        "--no-chrome",
+        "--no-session-persistence",
+        "--json-schema",
+        json.dumps(schema, sort_keys=True, separators=(",", ":")),
+        "--system-prompt",
+        system_prompt,
+    )
+
+
+def claude_strands_model(
+    *,
+    model_id: str,
+    effort: str,
+    working_dir: Path,
+    timeout_seconds: int = 600,
+) -> Any:
+    """Create a Strands Model backed only by the normal Claude subscription CLI."""
+    try:
+        from strands.models import Model
+    except ImportError as error:
+        raise ImportError(
+            "AVO supervisor requires: pip install 'agent-quality-harness[experiment]'"
+        ) from error
+
+    if not model_id or effort not in {"low", "medium", "high", "xhigh", "max"}:
+        raise ValueError("invalid Claude supervisor model or effort")
+    root = working_dir.resolve()
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    root.chmod(0o700)
+
+    class ClaudeSubscriptionModel(Model):
+        subscription_vendors = frozenset({"claude"})
+
+        def update_config(self, **model_config: Any) -> None:
+            if set(model_config) - {"model_id", "effort", "timeout_seconds"}:
+                raise ValueError("unsupported Claude supervisor model configuration")
+            self.model_id = str(model_config.get("model_id", self.model_id))
+            self.effort = str(model_config.get("effort", self.effort))
+            self.timeout_seconds = int(
+                model_config.get("timeout_seconds", self.timeout_seconds)
+            )
+
+        def get_config(self) -> dict[str, Any]:
+            return {
+                "model_id": self.model_id,
+                "effort": self.effort,
+                "timeout_seconds": self.timeout_seconds,
+                "provider": "claude-subscription-cli",
+            }
+
+        async def structured_output(
+            self,
+            output_model: type[Any],
+            prompt: Any,
+            system_prompt: str | None = None,
+            **kwargs: Any,
+        ) -> Any:
+            del kwargs
+            payload, _usage, _wall = await asyncio.to_thread(
+                self._invoke,
+                prompt,
+                output_model.model_json_schema(),
+                system_prompt,
+            )
+            yield {"output": output_model(**payload)}
+
+        async def stream(
+            self,
+            messages: Any,
+            tool_specs: list[dict[str, Any]] | None = None,
+            system_prompt: str | None = None,
+            **kwargs: Any,
+        ) -> Any:
+            del kwargs
+            structured = self._structured_tool(tool_specs)
+            schema = structured["inputSchema"]["json"]
+            payload, usage, wall = await asyncio.to_thread(
+                self._invoke, messages, schema, system_prompt
+            )
+            tool_id = "aqh-supervisor-directive"
+            yield {"messageStart": {"role": "assistant"}}
+            yield {
+                "contentBlockStart": {
+                    "start": {
+                        "toolUse": {
+                            "name": structured["name"],
+                            "toolUseId": tool_id,
+                        }
+                    }
+                }
+            }
+            yield {
+                "contentBlockDelta": {
+                    "delta": {
+                        "toolUse": {
+                            "input": json.dumps(
+                                payload, sort_keys=True, separators=(",", ":")
+                            )
+                        }
+                    }
+                }
+            }
+            yield {"contentBlockStop": {}}
+            yield {"messageStop": {"stopReason": "tool_use"}}
+            yield {
+                "metadata": {
+                    "usage": {
+                        "inputTokens": usage["input_tokens"],
+                        "outputTokens": usage["output_tokens"],
+                        "totalTokens": usage["input_tokens"] + usage["output_tokens"],
+                    },
+                    "metrics": {"latencyMs": int(wall * 1000)},
+                }
+            }
+
+        def _invoke(
+            self,
+            messages: Any,
+            schema: dict[str, Any],
+            system_prompt: str | None,
+        ) -> tuple[dict[str, Any], dict[str, int], float]:
+            _validate_environment(dict(os.environ))
+            prompt = (
+                "Return exactly one JSON object matching the supplied schema. "
+                "Use only the controller-supplied public review packet.\n"
+                f"<strands_conversation>{json.dumps(messages, sort_keys=True, separators=(',', ':'))}"
+                "</strands_conversation>"
+            )
+            argv = claude_supervisor_argv(
+                model=self.model_id,
+                effort=self.effort,
+                schema=schema,
+                system_prompt=system_prompt or "Return one validated directive.",
+            )
+            started = time.monotonic()
+            process = subprocess.run(
+                argv,
+                cwd=self.working_dir,
+                input=prompt,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=self.timeout_seconds,
+            )
+            wall = time.monotonic() - started
+            if process.returncode != 0:
+                diagnostic = (process.stderr or process.stdout or "no output").strip()[-4000:]
+                raise RuntimeError(f"Claude supervisor failed: {diagnostic}")
+            value = json.loads(process.stdout)
+            if not isinstance(value, dict):
+                raise RuntimeError("Claude supervisor returned invalid JSON")
+            payload = value.get("structured_output")
+            if not isinstance(payload, dict) and isinstance(value.get("result"), str):
+                try:
+                    payload = json.loads(value["result"])
+                except json.JSONDecodeError:
+                    payload = None
+            if not isinstance(payload, dict):
+                raise RuntimeError("Claude supervisor returned no structured directive")
+            usage = value.get("usage")
+            if not isinstance(usage, dict):
+                raise RuntimeError("Claude supervisor returned no usage")
+            return (
+                payload,
+                {
+                    "input_tokens": _metric(usage, "input_tokens"),
+                    "output_tokens": _metric(usage, "output_tokens"),
+                },
+                wall,
+            )
+
+        @staticmethod
+        def _structured_tool(
+            tool_specs: list[dict[str, Any]] | None,
+        ) -> dict[str, Any]:
+            matches = [
+                spec
+                for spec in (tool_specs or [])
+                if isinstance(spec.get("inputSchema", {}).get("json"), dict)
+                and {"action", "strategy", "instruction", "rationale"}
+                <= set(spec["inputSchema"]["json"].get("properties", {}))
+            ]
+            if len(matches) != 1:
+                raise ValueError("Claude supervisor requires one directive schema")
+            return matches[0]
+
+    instance = ClaudeSubscriptionModel()
+    instance.model_id = model_id
+    instance.effort = effort
+    instance.working_dir = root
+    instance.timeout_seconds = timeout_seconds
+    return instance

@@ -10,6 +10,7 @@ from agent_quality_harness.experiments.providers import (
     ClaudeProvider,
     CodexProvider,
     _validate_environment,
+    claude_supervisor_argv,
 )
 
 
@@ -26,6 +27,20 @@ FORBIDDEN = {
 
 
 class AvoProviderTests(unittest.TestCase):
+    def test_claude_supervisor_is_toolless_without_replacing_normal_auth_settings(self) -> None:
+        argv = claude_supervisor_argv(
+            model="fable",
+            effort="high",
+            schema={"type": "object"},
+            system_prompt="Return a directive.",
+        )
+
+        self.assertEqual(argv[0], "claude")
+        self.assertEqual(argv[argv.index("--tools") + 1], "")
+        self.assertIn("--json-schema", argv)
+        self.assertEqual(FORBIDDEN.intersection(argv), set())
+        self.assertNotIn("--setting-sources", argv)
+
     def test_paid_or_external_route_environment_is_rejected(self) -> None:
         for key in (
             "ANTHROPIC_API_KEY",

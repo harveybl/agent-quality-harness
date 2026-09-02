@@ -78,6 +78,12 @@ class AvoSupervisor:
         else:
             self._agent = agent_factory(**arguments)
             self._output_model = None
+        get_config = getattr(model, "get_config", None)
+        configuration = get_config() if callable(get_config) else {}
+        self.model_identity = {
+            "provider": configuration.get("provider", type(model).__name__),
+            "model": configuration.get("model_id", "scripted-or-unspecified"),
+        }
         self.last_usage = SupervisorUsage()
 
     def decide(self, packet: ReviewPacket) -> Directive:
@@ -110,6 +116,15 @@ class AvoSupervisor:
         tool_calls = 0
         if isinstance(tool_metrics, dict):
             for value in tool_metrics.values():
+                tool = getattr(value, "tool", {})
+                if isinstance(value, dict):
+                    tool = value.get("tool", {})
+                if isinstance(tool, dict) and tool.get("toolUseId") == (
+                    "aqh-supervisor-directive"
+                ):
+                    # Strands represents validated structured output internally as a
+                    # synthetic tool event. It is not an external supervisor tool.
+                    continue
                 calls = getattr(value, "call_count", 0)
                 if isinstance(value, dict):
                     calls = value.get("call_count", 0)
