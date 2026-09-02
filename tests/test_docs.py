@@ -74,6 +74,10 @@ class DocumentationTests(unittest.TestCase):
             (ROOT / "docs/frontier-deploy.md").read_text(encoding="utf-8"),
             (ROOT / "docs/local-deploy.md").read_text(encoding="utf-8"),
             (ROOT / "docs/avo-experiment.md").read_text(encoding="utf-8"),
+            (
+                ROOT
+                / "docs/superpowers/specs/2026-09-02-easy-button-installer-design.md"
+            ).read_text(encoding="utf-8"),
         ]
         wheel = (
             "https://github.com/harveybl/agent-quality-harness/releases/download/"
@@ -83,6 +87,7 @@ class DocumentationTests(unittest.TestCase):
             self.assertIn(wheel, text)
         self.assertIn("not PyPI", sources[1])
         self.assertIn("not on PyPI", sources[2])
+        self.assertNotIn("pipx install agent-quality-harness", sources[4])
 
     def test_current_evidence_leads_with_the_qualified_matrix(self) -> None:
         text = (ROOT / "docs/evidence.md").read_text(encoding="utf-8")

@@ -30,7 +30,7 @@ in one source tree.
 The standard installation has no optional runtime dependencies:
 
 ```bash
-pipx install agent-quality-harness
+python -m pip install 'agent-quality-harness @ https://github.com/harveybl/agent-quality-harness/releases/download/v0.2.0/agent_quality_harness-0.2.0-py3-none-any.whl'
 cd /path/to/project
 aqh install
 aqh doctor
