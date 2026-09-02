@@ -7,6 +7,8 @@ Claude Code and Codex retain their native agent loops. A repository-local synchr
 The installer changes only these target paths:
 
 - `.agent-quality/completion_gate.py`
+- `.agent-quality/quality_context.py`
+- `.agent-quality/quality_contract.txt`
 - `.agent-quality/gate.json`
 - `.agent-quality/install-manifest.json`
 - `.claude/settings.json` when Claude is selected
@@ -15,6 +17,11 @@ The installer changes only these target paths:
 It does not suppress global skills, memories, MCP servers, plugins, or account configuration. In an A/B test, keep those constant so the repository-local treatment is the only changed variable.
 
 ## Local path
+
+`aqh local doctor` reads health and model identity from an existing endpoint.
+It never starts, stops, downloads, or retries a model server. `aqh local run`
+then connects the enhanced worker to that endpoint and executes one controller
+run against a contract-bearing disposable workspace.
 
 The controller lifecycle is:
 
@@ -28,5 +35,14 @@ The controller lifecycle is:
 
 ## Runtime topology
 
-The host publishes llama.cpp only on `127.0.0.1`. Model weights are mounted read-only. The model server and non-root harness share one Compose network marked `internal: true`, so the harness can reach `http://model:8080/v1` but has no external egress. Only the disposable candidate mount is writable; the sandbox root filesystem and application code are read-only.
+The simple native path relies on the controller's path allowlist, protected
+paths, navigation budget, syntax checks, and bounded continuation. Those are
+native process bounds, not container isolation. Keep the endpoint on loopback
+when the worker runs on the same machine; a remote endpoint protects model
+weights but does not isolate the worker's workspace.
 
+The optional Compose topology is a stricter reproducibility backend. It mounts
+model weights read-only, puts the non-root harness and llama.cpp on an internal
+network, gives the harness a read-only root filesystem, and makes only the
+disposable candidate writable. GPU access belongs to the model-server
+container only.

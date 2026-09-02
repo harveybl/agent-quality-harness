@@ -14,9 +14,22 @@ class DocumentationTests(unittest.TestCase):
         errors = lint_repository(ROOT)
         self.assertEqual(errors, [], "\n".join(errors))
 
-    def test_local_runbook_has_all_eleven_deployment_stages(self) -> None:
-        text = (ROOT / "docs/local-deploy.md").read_text(encoding="utf-8")
-        self.assertEqual(text.count("## Step "), 11)
+    def test_local_quickstart_is_endpoint_first_and_container_optional(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        runbook = (ROOT / "docs/local-deploy.md").read_text(encoding="utf-8")
+        how = (ROOT / "docs/how-it-works.md").read_text(encoding="utf-8")
+        security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+        for text in (readme, runbook):
+            self.assertIn('pip install "agent-quality-harness[local]"', text)
+            self.assertIn("aqh local doctor", text)
+            self.assertIn("aqh local run", text)
+        self.assertLessEqual(runbook.count("## Step "), 4)
+        self.assertIn("AQH does not start or stop", runbook)
+        self.assertIn("user-supplied endpoint", runbook)
+        self.assertIn("native process bounds", runbook)
+        self.assertIn("Optional NVIDIA/Docker reproducibility", runbook)
+        self.assertIn("existing endpoint", how)
+        self.assertIn("not container isolation", security)
 
     def test_frontier_runbook_separates_synthetic_and_product_native_checks(self) -> None:
         text = (ROOT / "docs/frontier-deploy.md").read_text(encoding="utf-8")
@@ -29,4 +42,3 @@ class DocumentationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

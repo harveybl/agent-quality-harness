@@ -1,363 +1,181 @@
-# Deploy the local Qwen harness
+# Use the local-model harness
 
-Supported reproducible path: Ubuntu 24.04, NVIDIA GPU/driver, NVIDIA Container Toolkit, Docker Compose, the pinned llama.cpp server image, and the exact Qwen3.8-27B Q8 artifact in `models.lock.example`. The 29.05 GB model plus a 65,536-token context generally requires a high-memory GPU; the tested machine used an RTX 5090. Muse is not a deployable path in this release.
+The everyday path connects AQH to a user-supplied endpoint that is already
+running. AQH does not start or stop llama.cpp, manage GPU drivers, download
+weights, or require a container. The endpoint must provide `GET /health` and
+the OpenAI-compatible `GET /v1/models` plus chat-completions APIs.
 
-## Step 1: Confirm the supported host
+## Step 1: Install the optional local extra
 
 ### Purpose
 
-Stop before downloads if the host cannot expose an NVIDIA GPU to containers.
+Install the CLI, Strands worker, OpenAI-compatible client, and schema library
+without changing the model server.
 
 ### Run
 
 ```bash
-grep 'VERSION_ID="24.04"' /etc/os-release
-nvidia-smi
-docker version
-docker compose version
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install "agent-quality-harness[local]"
 ```
+
+On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1`.
 
 ### Expect
 
-Ubuntu 24.04, one visible NVIDIA GPU, and working Docker/Compose clients and daemon.
+`aqh --help` lists `local`; the base frontier commands remain usable without
+the local extra.
 
 ### If it fails
 
-Install the NVIDIA driver, Docker Engine, Compose plugin, and NVIDIA Container Toolkit from their vendor instructions; then reboot if the driver changed.
+Use Python 3.11 or newer and read the first package-resolution error. The local
+dependencies are intentionally pinned; do not loosen them silently.
 
 ### Verify
 
 ```bash
-docker run --rm --gpus all ubuntu:24.04 nvidia-smi
-```
-
-### Undo
-
-No mutation in this step.
-
-## Step 2: Clone the exact release
-
-### Purpose
-
-Use the audited repository state instead of moving `main`.
-
-### Run
-
-```bash
-git clone https://github.com/harveybl/agent-quality-harness.git
-cd agent-quality-harness
-git checkout v0.1.0
-```
-
-### Expect
-
-`git describe --tags --exact-match` prints `v0.1.0`.
-
-### If it fails
-
-Run `git fetch --tags` and verify that GitHub is reachable.
-
-### Verify
-
-```bash
-git status --short
-git describe --tags --exact-match
-```
-
-### Undo
-
-Leave the directory; delete the clone only if you no longer need it.
-
-## Step 3: Download the tested Qwen artifact
-
-### Purpose
-
-Acquire the exact Q8 bytes used by the published result without bundling model weights in Git.
-
-### Run
-
-```bash
-mkdir -p local/models
-curl -L --fail --continue-at - \
-  --output local/models/Qwen3.8-27B-Q8_0.gguf \
-  'https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/f1bfb127c64f7072bdd2cad55f258b9c8b2910fe/Qwen3.8-27B-Q8_0.gguf'
-```
-
-### Expect
-
-A 29,047,086,048-byte file. Review the upstream Apache-2.0 model card and applicable terms before use.
-
-### If it fails
-
-Check free disk space and retry the same resumable command. Do not substitute a differently named Q8 file and assume equivalence.
-
-### Verify
-
-```bash
-stat --format='%s' local/models/Qwen3.8-27B-Q8_0.gguf
+aqh local --help
 ```
 
 ### Undo
 
 ```bash
-rm -f local/models/Qwen3.8-27B-Q8_0.gguf
+python -m pip uninstall agent-quality-harness
 ```
 
-## Step 4: Verify the model lock
+## Step 2: Supply an existing model endpoint
 
 ### Purpose
 
-Bind the run to the tested filename, size, and SHA-256 before loading 29 GB into GPU memory.
+Run the model with the tool you already use. For current llama.cpp, this is a
+minimal native example on macOS or Linux:
 
 ### Run
 
 ```bash
-python3 local/scripts/verify_model.py local/models/Qwen3.8-27B-Q8_0.gguf
+llama-server \
+  --model /path/to/model.gguf \
+  --alias qwen-local \
+  --host 127.0.0.1 \
+  --port 8080 \
+  --ctx-size 65536 \
+  --jinja
 ```
+
+Choose GPU/offload settings appropriate for that machine. AQH deliberately
+does not own them.
 
 ### Expect
 
-One `PASS` line ending in `a680f44a06920e5d689774823782006aa3acc8db95750323373b24139b67e348`.
+The server stays in the foreground and advertises `qwen-local` from
+`http://127.0.0.1:8080/v1/models`.
 
 ### If it fails
 
-Do not run the model. Resume the download or remove the mismatched file and fetch it again.
+Resolve the server or model-loading error in llama.cpp. Do not add AQH wrappers
+around the server lifecycle.
 
 ### Verify
 
 ```bash
-sha256sum local/models/Qwen3.8-27B-Q8_0.gguf
+curl --fail http://127.0.0.1:8080/health
+curl --fail http://127.0.0.1:8080/v1/models
 ```
 
 ### Undo
 
-No mutation in this step.
+Press `Ctrl-C` in the llama.cpp terminal. AQH has nothing to clean up.
 
-## Step 5: Run the host preflight
+## Step 3: Diagnose once, then run once
 
 ### Purpose
 
-Check every named runtime dependency in one place.
+Confirm endpoint/model identity before giving the bounded worker a disposable
+candidate. No model call occurs during `doctor`.
 
 ### Run
 
 ```bash
-local/scripts/check_env.sh
+aqh local doctor \
+  --endpoint http://127.0.0.1:8080/v1 \
+  --model qwen-local
+
+cp -R examples/hello-fix runs/hello-fix-qwen
+aqh local run runs/hello-fix-qwen \
+  --endpoint http://127.0.0.1:8080/v1 \
+  --model qwen-local
 ```
+
+Use a different `--model` only when `/v1/models` advertises that exact ID.
 
 ### Expect
 
-Five `PASS` lines: Ubuntu, driver, Docker, Compose, and NVIDIA container runtime.
+Doctor reports reachability, health, exact model match, dependency state, and
+containment. The run writes `runs/hello-fix-qwen/runs/ledger.json`; its
+`automatic_run_retries` is `0` and `continuations` is at most the contract
+limit.
 
 ### If it fails
 
-Fix only the named failing prerequisite; do not add wrappers or change model configuration.
+Keep the ledger. Do not automatically rerun the full model condition. Correct
+only the reported endpoint mismatch, missing local extra, contract issue, or a
+genuine pre-model harness defect.
 
 ### Verify
 
 ```bash
-docker info --format '{{json .Runtimes}}'
+python -m unittest discover -s runs/hello-fix-qwen/public_checks -v
+python -m json.tool runs/hello-fix-qwen/runs/ledger.json
 ```
 
 ### Undo
 
-No mutation in this step.
+Remove only the disposable candidate after preserving any result you intend to
+compare. AQH never changes the model server.
 
-## Step 6: Build the sandbox image
+## Step 4: Optional NVIDIA/Docker reproducibility
 
 ### Purpose
 
-Materialize the pinned Python/Strands controller without putting tools on the host Python installation.
+Use the repository's pinned Compose topology when reproducible NVIDIA container
+isolation matters more than the two-command native path. This is optional and
+Linux-specific; it is not required on macOS or Windows.
 
 ### Run
 
 ```bash
-docker compose -f local/docker-compose.yml build harness
-```
+MODEL_DIR=/path/to/models MODEL_FILE=model.gguf \
+docker compose -f local/docker-compose.yml up -d model
 
-### Expect
-
-An image named `local-harness`; dependency resolution must include Strands 1.54.0 and OpenAI Python 2.54.0.
-
-### If it fails
-
-Read the first resolver or Dockerfile error. Do not loosen dependency versions; `make check` must still pass after any correction.
-
-### Verify
-
-```bash
-docker image inspect local-harness --format '{{.Id}}'
-```
-
-### Undo
-
-```bash
-docker image rm local-harness
-```
-
-## Step 7: Create a disposable candidate
-
-### Purpose
-
-Give the model a writable copy while keeping the shipped failing fixture unchanged.
-
-### Run
-
-```bash
-mkdir -p runs
-cp -R examples/hello-fix runs/hello-fix-01
-```
-
-### Expect
-
-`runs/hello-fix-01` contains `task.md`, `contract.json`, `starter`, and `public_checks`.
-
-### If it fails
-
-Check that you are at the repository root and the tagged example exists.
-
-### Verify
-
-```bash
-python3 -m unittest discover -s runs/hello-fix-01/public_checks -v
-```
-
-The verification must fail before the model runs; that is the known starter state.
-
-### Undo
-
-```bash
-rm -rf runs/hello-fix-01
-```
-
-## Step 8: Smoke-test server, structure, isolation, and gate
-
-### Purpose
-
-Prove the GPU server, native JSON plan response, internal-only sandbox network, and evaluator before a counted run.
-
-### Run
-
-```bash
-local/scripts/smoke.sh
-```
-
-### Expect
-
-Exactly four lines: `PASS model-server`, `PASS structured-plan`, `PASS sandbox-isolation`, and `PASS evaluator-tests`.
-
-### If it fails
-
-Inspect `docker compose -f local/docker-compose.yml logs model`; fix the reported layer only. The smoke request is a preflight, not a counted model result.
-
-### Verify
-
-```bash
-curl -fsS http://127.0.0.1:8080/health
-docker compose -f local/docker-compose.yml config --quiet
-```
-
-### Undo
-
-```bash
-local/scripts/down.sh
-```
-
-## Step 9: Run one local coding condition
-
-### Purpose
-
-Execute one plan, one implementation, deterministic checks, and at most one evidence-directed continuation.
-
-### Run
-
-```bash
-WORKSPACE_DIR=../runs/hello-fix-01 \
+WORKSPACE_DIR=../runs/hello-fix-qwen \
 docker compose -f local/docker-compose.yml run --rm harness
 ```
 
 ### Expect
 
-Exit `0` with `terminal_reason` equal to `passed` or `passed-after-continuation`; `automatic_run_retries` remains `0`.
+The model binds to host loopback, weights are read-only, the harness is
+non-root with a read-only root filesystem, and only the candidate mount is
+writable.
 
 ### If it fails
 
-Read `runs/hello-fix-01/runs/ledger.json`. Keep the failed result; do not automatically rerun it. Correct only a genuine pre-model harness bug.
+Run `docker compose -f local/docker-compose.yml config --quiet`, then inspect
+only the failing service log. NVIDIA container access is a requirement of this
+optional path, not of AQH itself.
 
 ### Verify
 
 ```bash
-python3 -m unittest discover -s runs/hello-fix-01/public_checks -v
-jq '{terminal_reason,model_calls,tool_calls,continuations,automatic_run_retries,changed_files}' \
-  runs/hello-fix-01/runs/ledger.json
+docker compose -f local/docker-compose.yml config --quiet
+docker compose -f local/docker-compose.yml ps
 ```
 
 ### Undo
-
-Restore the disposable candidate by removing it and repeating Step 7; do not overwrite a result you intend to count.
-
-## Step 10: Run a matched ablation
-
-### Purpose
-
-Measure the harness instead of merely demonstrating that one enhanced run can pass.
-
-### Run
-
-```bash
-cp -R examples/hello-fix runs/hello-fix-baseline
-cp -R examples/hello-fix runs/hello-fix-enhanced
-```
-
-Run each condition once with the same model artifact, task, starting files, context, temperature, permissions, evaluator, and time limit. For the baseline, use a plain OpenAI-compatible coding loop without anchored-plan, navigation-budget, syntax-gate, or continuation treatment; preserve its ledger separately.
-
-### Expect
-
-Two immutable ledgers that differ only in the treatment and disclose pass/fail, score, time, model cycles, tokens, intervention, and failure reason.
-
-### If it fails
-
-Discard the pair if starting hashes or limits differ. Do not “fix” one arm after seeing its result.
-
-### Verify
-
-```bash
-sha256sum runs/hello-fix-baseline/task.md runs/hello-fix-enhanced/task.md
-sha256sum runs/hello-fix-baseline/contract.json runs/hello-fix-enhanced/contract.json
-```
-
-### Undo
-
-Archive wanted ledgers, then remove only the two disposable candidate directories.
-
-## Step 11: Shut down and cleanly uninstall
-
-### Purpose
-
-Release GPU memory and remove containers without touching model weights or evidence.
-
-### Run
 
 ```bash
 local/scripts/down.sh
 ```
 
-### Expect
-
-No Compose containers remain and `nvidia-smi` shows no llama.cpp process.
-
-### If it fails
-
-Run `docker compose -f local/docker-compose.yml ps -a` and stop only containers in this Compose project.
-
-### Verify
-
-```bash
-docker compose -f local/docker-compose.yml ps -a
-nvidia-smi
-```
-
-### Undo
-
-Restart only the model service with `docker compose -f local/docker-compose.yml up -d model`.
-
+The native path provides native process bounds through the AQH tool policy. It
+is not equivalent to the optional container's filesystem and network isolation.
