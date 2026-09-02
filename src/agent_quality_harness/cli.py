@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 from typing import Sequence
 
-from . import doctor, installer, uninstaller
+from . import doctor, installer, uninstaller, verifier
 
 
 COMMANDS = (
@@ -47,6 +47,8 @@ def build_parser() -> argparse.ArgumentParser:
                 help="Discard later edits to managed files and restore pre-install bytes",
             )
         elif name == "doctor":
+            command.add_argument("--target", type=Path, default=Path.cwd())
+        elif name == "verify":
             command.add_argument("--target", type=Path, default=Path.cwd())
     return parser
 
@@ -90,6 +92,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"issue: {issue}")
         print(f"next: {report['recommendation']}")
         return 0 if report["status"] == "ok" else 1
+    if args.command == "verify":
+        report = verifier.verify(args.target)
+        for name, status in report["checks"].items():
+            print(f"{status.upper()} {name}")
+        return 0 if report["status"] == "pass" else 1
     print(f"aqh {args.command} is not available in this build", file=sys.stderr)
     return 2
 

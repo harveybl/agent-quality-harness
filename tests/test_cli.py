@@ -118,6 +118,19 @@ class CliTests(unittest.TestCase):
             self.assertIn("status: ok", process.stdout)
             self.assertIn("gate: minimum", process.stdout)
 
+    def test_verify_prints_one_compact_line_per_synthetic_check(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            subprocess.run(["git", "init", "-q", root], check=True)
+            self.assertEqual(self.run_cli("install", cwd=root).returncode, 0)
+
+            process = self.run_cli("verify", cwd=root)
+
+            self.assertEqual(process.returncode, 0, process.stderr)
+            self.assertIn("PASS hook_shape", process.stdout)
+            self.assertIn("PASS bounded_failure", process.stdout)
+            self.assertIn("PASS target_immutable", process.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

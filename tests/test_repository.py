@@ -17,6 +17,15 @@ class RepositoryTests(unittest.TestCase):
         self.assertNotIn("--gpus", workflow)
         self.assertNotIn("smoke.sh", workflow)
 
+    def test_legacy_duplicate_hook_resources_are_removed(self) -> None:
+        for relative in (
+            "frontier/AGENTS.md",
+            "frontier/CLAUDE.md",
+            "frontier/hooks/claude/settings.fragment.json",
+            "frontier/hooks/codex/hooks.fragment.json",
+        ):
+            self.assertFalse((ROOT / relative).exists(), relative)
+
 
 if __name__ == "__main__":
     unittest.main()
